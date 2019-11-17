@@ -5,17 +5,16 @@ using Newtonsoft.Json;
 
 namespace P2pNet
 {
-    public class ConnectionData 
-    {
-        public string url;
-    }
+
+
     public class P2pRedis : P2pNetBase
     {
-        public ConnectionMultiplexer RedisCon {get; private set; } = null;       
 
-        public P2pRedis(IP2pNetClient _client, object _connectionData) : base(_client, _connectionData)
+        public ConnectionMultiplexer RedisCon {get; private set; } = null;
+
+        public P2pRedis(IP2pNetClient _client, string _connectionString) : base(_client, _connectionString)
         {
-            RedisCon = ConnectionMultiplexer.Connect((_connectionData as ConnectionData).url);
+            RedisCon = ConnectionMultiplexer.Connect(_connectionString);
         }
 
         protected override string _Join(string mainChannel)
@@ -28,7 +27,7 @@ namespace P2pNet
         {
             // reset. Seems heavy handed
             RedisCon.Close();
-            RedisCon = ConnectionMultiplexer.Connect((connectionData as ConnectionData).url);
+            RedisCon = ConnectionMultiplexer.Connect(connectionStr);
         }
         protected override bool _Send(P2pNetMessage msg)
         {
@@ -38,17 +37,17 @@ namespace P2pNet
         }
 
         protected override void _Listen(string channel)
-        {   
+        {
             RedisCon.GetSubscriber().Subscribe(channel, (rcvChannel, msgJSON) => {
                 P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(msgJSON);
                 _OnReceivedNetMessage(rcvChannel, msg);
             });
         }
 
-        protected override void _StopListening(string channel) 
+        protected override void _StopListening(string channel)
         {
             RedisCon.GetSubscriber().Unsubscribe(channel);
-        }       
+        }
 
         private  string _NewP2pId()
         {

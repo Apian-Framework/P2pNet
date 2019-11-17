@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Newtonsoft.Json;
 
 namespace P2pNet
-{  
+{
     public interface IP2pNetClient
     {
         object P2pHelloData();
@@ -28,7 +28,7 @@ namespace P2pNet
         public bool helloReceived = false; // we have gotten this node's basic info (ie. it has joined the net)
         public long lastHeardTs = 0; // time when last heard from. 0 for never heard from
         public long lastSentToTs = 0; // stamp for last message we sent (use to throttle pings somewhat)
-        public long lastMsgId = 0; // Last msg rcvd from this peer. Each peer tags each mesage with a serial # (nextMsgId in P2PNetBase)        
+        public long lastMsgId = 0; // Last msg rcvd from this peer. Each peer tags each mesage with a serial # (nextMsgId in P2PNetBase)
 
         public bool ValidateMsgId(long msgId)
         {
@@ -48,7 +48,7 @@ namespace P2pNet
         public const string MsgHello = "HELLO";
         public const string MsgGoodbye = "BYE";
         public const string MsgPing = "PING";
-        public const string MsgAppl = "APPMSG";                
+        public const string MsgAppl = "APPMSG";
 
         public string dstChannel;
         public string srcId;
@@ -64,32 +64,32 @@ namespace P2pNet
 
     public abstract class P2pNetBase : IP2pNet
     {
-        protected string localId;        
+        protected string localId;
         protected string mainChannel; // broadcasts go here
         protected IP2pNetClient client;
-        protected object connectionData; // Transport-dependent. TODO: find better format than "object"
+        protected string connectionStr; // Transport-dependent format
         protected Dictionary<string, P2pNetPeer> peers;
         protected Dictionary<string, long> lastMsgIdSent; // last Id sent to each channel/peer
 
         public long nowMs => DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
 
-        public P2pNetBase(IP2pNetClient _client, object _connectionData) 
-        {   
+        public P2pNetBase(IP2pNetClient _client, string _connectionStr)
+        {
             client = _client;
-            connectionData = _connectionData;
+            connectionStr = _connectionStr;
             _InitJoinParams();
         }
 
         // IP2pNet
         public string GetId() => localId;
-        public string Join(string _mainChannel) 
+        public string Join(string _mainChannel)
         {
             _InitJoinParams();
             mainChannel = _mainChannel;
             localId = _Join(mainChannel);
             return localId;
         }
-        public void Send(string chan, object applMsgData) 
+        public void Send(string chan, object applMsgData)
         {
             if (chan == localId)
                 client.OnP2pMsg(localId, localId, applMsgData); // loopback
@@ -98,30 +98,30 @@ namespace P2pNet
         }
 
         public void AddPeer(string peerId) {} // really only makes sense for direct-connection transports
-        public void Leave() 
+        public void Leave()
         {
             _SendBye();
             _Leave();
             _InitJoinParams();
-        }        
+        }
 
         // Implementation methods
         protected abstract string _Join(string mainChannel);
         protected abstract bool _Send(P2pNetMessage msg);
         protected abstract void _Listen(string channel);
-        protected abstract void _StopListening(string channel);         
+        protected abstract void _StopListening(string channel);
         protected abstract void _Leave();
 
         // Transport-independent tasks
 
-        protected void _DoSend(string dstChan, string msgType, object msgData) 
+        protected void _DoSend(string dstChan, string msgType, object msgData)
         {
             // Send() is the API for client messages
                 long msgId = lastMsgIdSent[dstChan]+1;
                 P2pNetMessage p2pMsg = new P2pNetMessage(dstChan, localId, msgId, msgType, msgData);
                 if (_Send(p2pMsg))
                     _UpdateSendStats(dstChan, msgId);
-        }        
+        }
 
 
         protected void _OnReceivedNetMessage(string srcChannel, P2pNetMessage msg)
@@ -138,7 +138,7 @@ namespace P2pNet
                     break;
                 case P2pNetMessage.MsgGoodbye:
                     _OnByeMsg(srcChannel, msg);
-                    break;                                    
+                    break;
             }
         }
 
@@ -159,21 +159,21 @@ namespace P2pNet
 
         protected long _NextMsgId(string chan)
         {
-            try { 
+            try {
                 return lastMsgIdSent[chan];
-            } catch (KeyNotFoundException){ 
+            } catch (KeyNotFoundException){
                 return 1;
-            } 
+            }
         }
 
         protected void _UpdateSendStats(string channel, long latestMsgId)
         {
-            lastMsgIdSent[channel] = latestMsgId;  
+            lastMsgIdSent[channel] = latestMsgId;
 
             if (channel == mainChannel)
                 foreach (P2pNetPeer p in peers.Values)
                     p.lastSentToTs = nowMs;
-            else    
+            else
                 peers[channel].lastSentToTs = nowMs;
         }
 
@@ -182,7 +182,7 @@ namespace P2pNet
         protected void _SendHello(string channel)
         {
             object helloData = client.P2pHelloData();
-            _DoSend(channel, P2pNetMessage.MsgHello, helloData);            
+            _DoSend(channel, P2pNetMessage.MsgHello, helloData);
         }
 
         protected void _OnHelloMsg(string srcChannel, P2pNetMessage msg)
@@ -203,15 +203,15 @@ namespace P2pNet
         protected void _SendBye()
         {
             object helloData = client.P2pHelloData();
-            _DoSend(mainChannel, P2pNetMessage.MsgGoodbye, null);            
+            _DoSend(mainChannel, P2pNetMessage.MsgGoodbye, null);
         }
 
         protected void _OnByeMsg(string srcChannel, P2pNetMessage msg)
         {
-           client.OnPeerLeft(msg.srcId);             
+           client.OnPeerLeft(msg.srcId);
             _StopListening(msg.srcId);
             peers.Remove(msg.srcId);
-        }        
+        }
 
     }
 
