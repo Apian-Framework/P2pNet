@@ -20,7 +20,9 @@ namespace P2pNet
         protected override string _Join(string mainChannel)
         {
             _Listen(mainChannel);
-            return _NewP2pId();
+            string newId = _NewP2pId();
+            _Listen(newId);
+            return newId;
         }
 
         protected override void _Leave()

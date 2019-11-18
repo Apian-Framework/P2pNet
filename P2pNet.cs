@@ -1,5 +1,6 @@
 ﻿using System.Security.Cryptography;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
@@ -16,6 +17,8 @@ namespace P2pNet
     {
         string GetId();
         string Join(string mainChannel); // returns local ID
+        List<string> GetPeerIds();
+        object GetPeerData(string peerId);
         void Leave();
         void Send(string chan, object msgData);
         void AddPeer(string peerId);
@@ -24,6 +27,7 @@ namespace P2pNet
     public class P2pNetPeer
     {
         public string p2pId;
+        public object helloData;
         public long firstHelloSentTs = 0; // when did we FIRST send a hello/hello req? (for knowing when to give up)
         public bool helloReceived = false; // we have gotten this node's basic info (ie. it has joined the net)
         public long lastHeardTs = 0; // time when last heard from. 0 for never heard from
@@ -56,9 +60,13 @@ namespace P2pNet
         public string msgType;
         public string msgJson; // json-encoded message object
 
-        public P2pNetMessage(string dstChan, string srcId, long msgId, string msgType, object msgData)
+        public P2pNetMessage(string _dstChan, string _srcId, long _msgId, string _msgType, object _msgData)
         {
-
+            dstChannel = _dstChan;
+            srcId = _srcId;
+            msgId = _msgId;
+            msgType = _msgType;
+            msgJson = JsonConvert.SerializeObject(_msgData);
         }
     }
 
@@ -87,8 +95,21 @@ namespace P2pNet
             _InitJoinParams();
             mainChannel = _mainChannel;
             localId = _Join(mainChannel);
+            _SendHello(mainChannel);
             return localId;
         }
+
+        public List<string> GetPeerIds() => peers.Keys.ToList();
+
+        public object GetPeerData(string peerId)
+        {
+            try {
+                return peers[peerId].helloData;
+            } catch(KeyNotFoundException) {
+                return null;
+            }
+        }
+
         public void Send(string chan, object applMsgData)
         {
             if (chan == localId)
@@ -117,10 +138,10 @@ namespace P2pNet
         protected void _DoSend(string dstChan, string msgType, object msgData)
         {
             // Send() is the API for client messages
-                long msgId = lastMsgIdSent[dstChan]+1;
-                P2pNetMessage p2pMsg = new P2pNetMessage(dstChan, localId, msgId, msgType, msgData);
-                if (_Send(p2pMsg))
-                    _UpdateSendStats(dstChan, msgId);
+            long msgId = _NextMsgId(dstChan);
+            P2pNetMessage p2pMsg = new P2pNetMessage(dstChan, localId, msgId, msgType, msgData);
+            if (_Send(p2pMsg))
+                _UpdateSendStats(dstChan, msgId);
         }
 
 
@@ -160,7 +181,7 @@ namespace P2pNet
         protected long _NextMsgId(string chan)
         {
             try {
-                return lastMsgIdSent[chan];
+                return lastMsgIdSent[chan] + 1;
             } catch (KeyNotFoundException){
                 return 1;
             }
@@ -190,12 +211,12 @@ namespace P2pNet
             if (!peers.ContainsKey(msg.srcId))
             {
                 P2pNetPeer p = new P2pNetPeer();
+                object helloData = JsonConvert.DeserializeObject(msg.msgJson);
                 p.p2pId = msg.srcId;
                 p.helloReceived = true;
+                p.helloData = helloData;
                 peers[p.p2pId] = p;
                 _SendHello(p.p2pId);
-                _Listen(p.p2pId);
-                object helloData = JsonConvert.DeserializeObject(msg.msgJson);
                 client.OnPeerJoined(msg.srcId, helloData);
             }
         }
