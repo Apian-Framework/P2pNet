@@ -8,26 +8,26 @@ namespace P2pNet
 {
     public interface IP2pNetClient
     {
-        object P2pHelloData();
-        void OnPeerJoined(string p2pId, object helloData);
+        string P2pHelloData();
+        void OnPeerJoined(string p2pId, string helloData);
         void OnPeerLeft(string p2pId);
-        void OnP2pMsg(string from, string to, object msgData);
+        void OnP2pMsg(string from, string to, string payload);
     }
     public interface IP2pNet
     {
         string GetId();
         string Join(string mainChannel); // returns local ID
         List<string> GetPeerIds();
-        object GetPeerData(string peerId);
+        string GetPeerData(string peerId);
         void Leave();
-        void Send(string chan, object msgData);
+        void Send(string chan, string payload);
         void AddPeer(string peerId);
     }
 
     public class P2pNetPeer
     {
         public string p2pId;
-        public object helloData;
+        public string helloData; 
         public long firstHelloSentTs = 0; // when did we FIRST send a hello/hello req? (for knowing when to give up)
         public bool helloReceived = false; // we have gotten this node's basic info (ie. it has joined the net)
         public long lastHeardTs = 0; // time when last heard from. 0 for never heard from
@@ -53,20 +53,19 @@ namespace P2pNet
         public const string MsgGoodbye = "BYE";
         public const string MsgPing = "PING";
         public const string MsgAppl = "APPMSG";
-
         public string dstChannel;
         public string srcId;
         public long msgId;
         public string msgType;
-        public string msgJson; // json-encoded message object
+        public string payload; // string or json-encoded application object
 
-        public P2pNetMessage(string _dstChan, string _srcId, long _msgId, string _msgType, object _msgData)
+        public P2pNetMessage(string _dstChan, string _srcId, long _msgId, string _msgType, string _payload)
         {
             dstChannel = _dstChan;
             srcId = _srcId;
             msgId = _msgId;
             msgType = _msgType;
-            msgJson = JsonConvert.SerializeObject(_msgData);
+            payload = _payload;
         }
     }
 
@@ -78,9 +77,7 @@ namespace P2pNet
         protected string connectionStr; // Transport-dependent format
         protected Dictionary<string, P2pNetPeer> peers;
         protected Dictionary<string, long> lastMsgIdSent; // last Id sent to each channel/peer
-
         public long nowMs => DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
-
         public P2pNetBase(IP2pNetClient _client, string _connectionStr)
         {
             client = _client;
@@ -98,10 +95,8 @@ namespace P2pNet
             _SendHello(mainChannel);
             return localId;
         }
-
         public List<string> GetPeerIds() => peers.Keys.ToList();
-
-        public object GetPeerData(string peerId)
+        public string GetPeerData(string peerId)
         {
             try {
                 return peers[peerId].helloData;
@@ -110,12 +105,12 @@ namespace P2pNet
             }
         }
 
-        public void Send(string chan, object applMsgData)
+        public void Send(string chan, string payload)
         {
             if (chan == localId)
-                client.OnP2pMsg(localId, localId, applMsgData); // loopback
+                client.OnP2pMsg(localId, localId, payload); // loopback
             else
-                _DoSend(chan, P2pNetMessage.MsgAppl, applMsgData);
+                _DoSend(chan, P2pNetMessage.MsgAppl, payload);
         }
 
         public void AddPeer(string peerId) {} // really only makes sense for direct-connection transports
@@ -135,16 +130,14 @@ namespace P2pNet
 
         // Transport-independent tasks
 
-        protected void _DoSend(string dstChan, string msgType, object msgData)
+        protected void _DoSend(string dstChan, string msgType, string payload)
         {
             // Send() is the API for client messages
             long msgId = _NextMsgId(dstChan);
-            P2pNetMessage p2pMsg = new P2pNetMessage(dstChan, localId, msgId, msgType, msgData);
+            P2pNetMessage p2pMsg = new P2pNetMessage(dstChan, localId, msgId, msgType, payload);
             if (_Send(p2pMsg))
                 _UpdateSendStats(dstChan, msgId);
         }
-
-
         protected void _OnReceivedNetMessage(string srcChannel, P2pNetMessage msg)
         {
             // TODO: update receipt stats
@@ -162,15 +155,11 @@ namespace P2pNet
                     break;
             }
         }
-
         protected void _OnAppMsg(string srcChannel, P2pNetMessage msg)
         {
             // dispatch a received client message
-            object msgData = JsonConvert.DeserializeObject(msg.msgJson);
-            client.OnP2pMsg(msg.srcId, msg.dstChannel, msgData);
+            client.OnP2pMsg(msg.srcId, msg.dstChannel, msg.payload);
         }
-
-
         protected void _InitJoinParams()
         {
             peers = new Dictionary<string, P2pNetPeer>();
@@ -202,8 +191,7 @@ namespace P2pNet
 
         protected void _SendHello(string channel)
         {
-            object helloData = client.P2pHelloData();
-            _DoSend(channel, P2pNetMessage.MsgHello, helloData);
+            _DoSend(channel, P2pNetMessage.MsgHello, client.P2pHelloData());
         }
 
         protected void _OnHelloMsg(string srcChannel, P2pNetMessage msg)
@@ -211,13 +199,12 @@ namespace P2pNet
             if (!peers.ContainsKey(msg.srcId))
             {
                 P2pNetPeer p = new P2pNetPeer();
-                object helloData = JsonConvert.DeserializeObject(msg.msgJson);
                 p.p2pId = msg.srcId;
                 p.helloReceived = true;
-                p.helloData = helloData;
+                p.helloData = msg.payload;
                 peers[p.p2pId] = p;
                 _SendHello(p.p2pId);
-                client.OnPeerJoined(msg.srcId, helloData);
+                client.OnPeerJoined(msg.srcId, msg.payload);
             }
         }
 
@@ -235,5 +222,4 @@ namespace P2pNet
         }
 
     }
-
 }

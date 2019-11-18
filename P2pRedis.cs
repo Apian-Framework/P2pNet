@@ -6,7 +6,6 @@ using Newtonsoft.Json;
 namespace P2pNet
 {
 
-
     public class P2pRedis : P2pNetBase
     {
 
