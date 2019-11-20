@@ -1,8 +1,9 @@
-﻿using System.Security.Cryptography;
-using System;
+﻿using System;
+using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Generic;
-using Newtonsoft.Json;
+using AsyncDelay;
+
 
 namespace P2pNet
 {
@@ -30,9 +31,36 @@ namespace P2pNet
         public string helloData; 
         public long firstHelloSentTs = 0; // when did we FIRST send a hello/hello req? (for knowing when to give up)
         public bool helloReceived = false; // we have gotten this node's basic info (ie. it has joined the net)
-        public long lastHeardTs = 0; // time when last heard from. 0 for never heard from
+        //public long lastHeardTs = 0; // time when last heard from. 0 for never heard from
         public long lastSentToTs = 0; // stamp for last message we sent (use to throttle pings somewhat)
         public long lastMsgId = 0; // Last msg rcvd from this peer. Each peer tags each mesage with a serial # (nextMsgId in P2PNetBase)
+
+        public int pingTimeoutMs;
+
+        public IAsyncDelayer pingDelayer {get; private set;}
+        protected Task pingTimeoutTask { get; private set; }
+        protected P2pNetBase p2pBase;
+        public P2pNetPeer(P2pNetBase _p2pBase, string _p2pId, int _pingMs, IAsyncDelayer delayer = null)
+        {
+            p2pBase = _p2pBase;
+            p2pId = _p2pId;
+            pingTimeoutMs = _pingMs;
+            pingDelayer = delayer ?? (IAsyncDelayer)new AsyncDelayer(); // default to production delayer   
+        }
+
+        protected async Task DoWaitForPingTimeout()
+        {
+            await pingDelayer.Delay(pingTimeoutMs);
+            if (pingDelayer.Status == DelayStatus.Completed)
+                p2pBase.OnPingTimeout(this);
+        }
+
+        public void ResetPingTimer()
+        {
+            pingDelayer.Cancel();
+            pingDelayer.Reset();
+            DoWaitForPingTimeout(); // yes, we aren't waiting for it. That's the point.
+        }
 
         public bool ValidateMsgId(long msgId)
         {
@@ -71,6 +99,12 @@ namespace P2pNet
 
     public abstract class P2pNetBase : IP2pNet
     {
+        public static Dictionary<string, string> defaultConfig = new Dictionary<string, string>() 
+        {
+            {"pingMs", "10000"}
+        };
+
+        public Dictionary<string, string> config;
         protected string localId;
         protected string mainChannel; // broadcasts go here
         protected IP2pNetClient client;
@@ -78,8 +112,9 @@ namespace P2pNet
         protected Dictionary<string, P2pNetPeer> peers;
         protected Dictionary<string, long> lastMsgIdSent; // last Id sent to each channel/peer
         public long nowMs => DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
-        public P2pNetBase(IP2pNetClient _client, string _connectionStr)
+        public P2pNetBase(IP2pNetClient _client, string _connectionStr, Dictionary<string, string> _config = null)
         {
+            config = _config ?? defaultConfig;
             client = _client;
             connectionStr = _connectionStr;
             _InitJoinParams();
@@ -129,6 +164,11 @@ namespace P2pNet
         protected abstract void _Leave();
 
         // Transport-independent tasks
+        public void OnPingTimeout(P2pNetPeer p)
+        {
+            client.OnPeerLeft(p.p2pId); // TODO: should say that it wasn;t a good leave
+            peers.Remove(p.p2pId);
+        }
 
         protected void _DoSend(string dstChan, string msgType, string payload)
         {
@@ -140,7 +180,11 @@ namespace P2pNet
         }
         protected void _OnReceivedNetMessage(string srcChannel, P2pNetMessage msg)
         {
-            // TODO: update receipt stats
+            if (peers.ContainsKey(srcChannel))
+            {
+                peers[srcChannel].ResetPingTimer();
+            }
+
             // TODO: get rid of switch
             switch(msg.msgType)
             {
@@ -158,6 +202,12 @@ namespace P2pNet
         protected void _OnAppMsg(string srcChannel, P2pNetMessage msg)
         {
             // dispatch a received client message
+            if (!peers.ContainsKey(srcChannel))
+            {
+                // Don't know this peer. Send hello.
+                _SendHello(srcChannel);
+                return;
+            }
             client.OnP2pMsg(msg.srcId, msg.dstChannel, msg.payload);
         }
         protected void _InitJoinParams()
@@ -198,8 +248,7 @@ namespace P2pNet
         {
             if (!peers.ContainsKey(msg.srcId))
             {
-                P2pNetPeer p = new P2pNetPeer();
-                p.p2pId = msg.srcId;
+                P2pNetPeer p = new P2pNetPeer(this, msg.srcId, int.Parse(config["pingMs"]));
                 p.helloReceived = true;
                 p.helloData = msg.payload;
                 peers[p.p2pId] = p;
