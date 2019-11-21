@@ -80,6 +80,7 @@ namespace P2pNet
         public const string MsgHello = "HELLO";
         public const string MsgGoodbye = "BYE";
         public const string MsgPing = "PING";
+        public const string MsgPingReply = "PNGRPLY";        
         public const string MsgAppl = "APPMSG";
         public string dstChannel;
         public string srcId;
@@ -127,6 +128,7 @@ namespace P2pNet
             _InitJoinParams();
             mainChannel = _mainChannel;
             localId = _Join(mainChannel);
+            Console.WriteLine(string.Format("*{0}: Join - Sending hello to main channel", localId));
             _SendHello(mainChannel);
             return localId;
         }
@@ -143,9 +145,15 @@ namespace P2pNet
         public void Send(string chan, string payload)
         {
             if (chan == localId)
-                client.OnP2pMsg(localId, localId, payload); // loopback
-            else
+            {
+                client.OnP2pMsg(localId, localId, payload); // direct loopback
+            } else {
+                if (chan == mainChannel)
+                    client.OnP2pMsg(localId, chan, payload); // main channnel loopback
+
+                Console.WriteLine(string.Format("*{0}: Send - sending appMsg to {1}", localId, (chan == mainChannel) ? "main channel" : chan));                  
                 _DoSend(chan, P2pNetMessage.MsgAppl, payload);
+            }
         }
 
         public void AddPeer(string peerId) {} // really only makes sense for direct-connection transports
@@ -180,9 +188,11 @@ namespace P2pNet
         }
         protected void _OnReceivedNetMessage(string srcChannel, P2pNetMessage msg)
         {
-            if (peers.ContainsKey(srcChannel))
+            if (msg.srcId == localId)
             {
-                peers[srcChannel].ResetPingTimer();
+                return; // main channel messages from local peer will show up here
+            } else if (peers.ContainsKey(msg.srcId)) {             
+                peers[msg.srcId].ResetPingTimer();
             }
 
             // TODO: get rid of switch
@@ -202,12 +212,14 @@ namespace P2pNet
         protected void _OnAppMsg(string srcChannel, P2pNetMessage msg)
         {
             // dispatch a received client message
-            if (!peers.ContainsKey(srcChannel))
+            if (!peers.ContainsKey(msg.srcId))
             {
-                // Don't know this peer. Send hello.
-                _SendHello(srcChannel);
+                // Don't know this peer. Send hello directly.
+                Console.WriteLine(string.Format("*{0}: _OnAppMsg - sending hello to {1}", localId, msg.srcId));                
+                _SendHello(msg.srcId);
                 return;
             }
+            Console.WriteLine(string.Format("*{0}: _OnAppMsg - msg from known {1}", localId, msg.srcId));            
             client.OnP2pMsg(msg.srcId, msg.dstChannel, msg.payload);
         }
         protected void _InitJoinParams()
@@ -248,10 +260,12 @@ namespace P2pNet
         {
             if (!peers.ContainsKey(msg.srcId))
             {
+                Console.WriteLine(string.Format("*{0}: _OnHelloMsg - Hello from {1}", localId, msg.srcId));                
                 P2pNetPeer p = new P2pNetPeer(this, msg.srcId, int.Parse(config["pingMs"]));
                 p.helloReceived = true;
                 p.helloData = msg.payload;
                 peers[p.p2pId] = p;
+                Console.WriteLine(string.Format("*{0}: _OnHelloMsg - replying to {1}", localId, p.p2pId));                
                 _SendHello(p.p2pId);
                 client.OnPeerJoined(msg.srcId, msg.payload);
             }

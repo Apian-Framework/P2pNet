@@ -11,7 +11,7 @@ namespace P2pNet
 
         public ConnectionMultiplexer RedisCon {get; private set; } = null;
 
-        public P2pRedis(IP2pNetClient _client, string _connectionString) : base(_client, _connectionString)
+        public P2pRedis(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null) : base(_client, _connectionString,  _config)
         {
             RedisCon = ConnectionMultiplexer.Connect(_connectionString);
         }
