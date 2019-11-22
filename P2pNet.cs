@@ -2,7 +2,6 @@
 using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Generic;
-using AsyncDelay;
 
 
 namespace P2pNet
@@ -16,6 +15,7 @@ namespace P2pNet
     }
     public interface IP2pNet
     {
+        void Loop(); // needs to be called periodically (drives message pump + group handling)
         string GetId();
         string Join(string mainChannel); // returns local ID
         List<string> GetPeerIds();
@@ -26,41 +26,64 @@ namespace P2pNet
     }
 
     public class P2pNetPeer
-    {
+    {       
         public string p2pId;
         public string helloData; 
-        public long firstHelloSentTs = 0; // when did we FIRST send a hello/hello req? (for knowing when to give up)
-        public bool helloReceived = false; // we have gotten this node's basic info (ie. it has joined the net)
-        //public long lastHeardTs = 0; // time when last heard from. 0 for never heard from
-        public long lastSentToTs = 0; // stamp for last message we sent (use to throttle pings somewhat)
-        public long lastMsgId = 0; // Last msg rcvd from this peer. Each peer tags each mesage with a serial # (nextMsgId in P2PNetBase)
+        protected long firstHelloSentTs = 0; // when did we FIRST send a hello/hello req? (for knowing when to give up)
+        // TODO: need to set the above either in the constructor (if it includes hello data)
+        // or when we send a hello to a peer that has firstHelloSentTs == 0;
+        protected long lastHeardTs = 0; // time when last heard from. 0 for never heard from
+        protected long lastSentToTs = 0; // stamp for last message we sent (use to throttle pings somewhat)  
+        protected long lastMsgId = 0; // Last msg rcvd from this peer. Each peer tags each mesage with a serial # (nextMsgId in P2PNetBase)
 
-        public int pingTimeoutMs;
+        protected int pingTimeoutMs;
+        protected int dropTimeoutMs;        
 
-        public IAsyncDelayer pingDelayer {get; private set;}
-        protected Task pingTimeoutTask { get; private set; }
-        protected P2pNetBase p2pBase;
-        public P2pNetPeer(P2pNetBase _p2pBase, string _p2pId, int _pingMs, IAsyncDelayer delayer = null)
+        public P2pNetPeer(string _p2pId, int _pingMs, int _dropMs)
         {
-            p2pBase = _p2pBase;
             p2pId = _p2pId;
             pingTimeoutMs = _pingMs;
-            pingDelayer = delayer ?? (IAsyncDelayer)new AsyncDelayer(); // default to production delayer   
+            dropTimeoutMs = _dropMs;
         }
 
-        protected async Task DoWaitForPingTimeout()
+        public bool HaveTriedToContact() => firstHelloSentTs > 0;
+        public bool HaveHeardFrom() => helloData != null;
+
+        public bool WeShouldSendHello() 
         {
-            await pingDelayer.Delay(pingTimeoutMs);
-            if (pingDelayer.Status == DelayStatus.Completed)
-                p2pBase.OnPingTimeout(this);
+            // Should we send hello to a node we've never heard from?
+            // Yes if:
+            // - If we've never sent a hello. 
+            // - it's been more that a ping-time since we did.   
+            if (HaveHeardFrom())
+                return false; 
+            if (!HaveTriedToContact())
+                return true;
+            return (P2pNetBase.nowMs - lastSentToTs) > pingTimeoutMs;                     
         }
 
-        public void ResetPingTimer()
+        public bool HelloTimedOut()
         {
-            pingDelayer.Cancel();
-            pingDelayer.Reset();
-            DoWaitForPingTimeout(); // yes, we aren't waiting for it. That's the point.
+            // Not hearing from them
+            long elapsed = P2pNetBase.nowMs - lastHeardTs;
+            //if ( elapsed > _pingTimeoutSecs * 3 / 2)
+            //    self.log.info('Peer is late: {0}'.format(self._log_peer_id(p.p2pID)))
+            return (elapsed > dropTimeoutMs);
         }
+
+        public bool HasTimedOut() 
+        {
+            // Not hearing from them
+            long elapsed = P2pNetBase.nowMs - lastHeardTs;
+            //Console.WriteLine(string.Format("* HastimedOut() now: {0}. lastHeard: {1} ", P2pNetBase.nowMs, lastHeardTs));                        
+            //Console.WriteLine(string.Format("                elapsed: {0}. dropMs: {1} ", elapsed, dropTimeoutMs)); 
+            return (elapsed > dropTimeoutMs);            
+        }
+
+        public void UpdateLastHeardFrom() =>  lastHeardTs = P2pNetBase.nowMs;
+        public void UpdateLastSentTo() =>  lastSentToTs = P2pNetBase.nowMs;
+
+        public bool NeedsPing() => (P2pNetBase.nowMs - lastSentToTs) > pingTimeoutMs;
 
         public bool ValidateMsgId(long msgId)
         {
@@ -77,7 +100,8 @@ namespace P2pNet
         // Note that a P2pNetClient never sees this
         // TODO: How to make this "internal" and still allow P2pNetBase._Send() to be protected
 
-        public const string MsgHello = "HELLO";
+        public const string MsgHello = "HELLO"; // recipient should reply
+        public const string MsgHelloReply = "HRPLY"; // do not reply
         public const string MsgGoodbye = "BYE";
         public const string MsgPing = "PING";
         public const string MsgPingReply = "PNGRPLY";        
@@ -102,7 +126,8 @@ namespace P2pNet
     {
         public static Dictionary<string, string> defaultConfig = new Dictionary<string, string>() 
         {
-            {"pingMs", "10000"}
+            {"pingMs", "7000"},
+            {"dropMs", "15000"}
         };
 
         public Dictionary<string, string> config;
@@ -112,7 +137,7 @@ namespace P2pNet
         protected string connectionStr; // Transport-dependent format
         protected Dictionary<string, P2pNetPeer> peers;
         protected Dictionary<string, long> lastMsgIdSent; // last Id sent to each channel/peer
-        public long nowMs => DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
+        public static long nowMs => DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
         public P2pNetBase(IP2pNetClient _client, string _connectionStr, Dictionary<string, string> _config = null)
         {
             config = _config ?? defaultConfig;
@@ -129,7 +154,7 @@ namespace P2pNet
             mainChannel = _mainChannel;
             localId = _Join(mainChannel);
             Console.WriteLine(string.Format("*{0}: Join - Sending hello to main channel", localId));
-            _SendHello(mainChannel);
+            _SendHello(mainChannel, true);
             return localId;
         }
         public List<string> GetPeerIds() => peers.Keys.ToList();
@@ -142,6 +167,50 @@ namespace P2pNet
             }
         }
 
+        public void Loop()
+        {
+            if (localId == null) 
+                return; // Not connected so don't bother
+
+            _Poll();
+
+            List<P2pNetPeer> peersToDelete = new List<P2pNetPeer>();
+
+            foreach( P2pNetPeer peer in peers.Values )
+            {
+                if (!peer.HaveHeardFrom())
+                {
+                    // Peer must've been added manually w/AddPeer()                     
+                    if (peer.WeShouldSendHello())
+                    {
+                        _SendHello(peer.p2pId, true);
+                    } else if (peer.HelloTimedOut()) {
+                        // We've already sent one, and never heard back. Stop trying.
+                        Console.WriteLine(string.Format("*{0}: Loop - Failed HelloTimedOut(): {1}", localId, peer.p2pId));                        
+                        peersToDelete.Add(peer);
+                    }
+                } else {
+                    // It's someone we know about
+                    if (peer.HasTimedOut())
+                    {
+                        Console.WriteLine(string.Format("*{0}: Loop - Failed HasTimedOut(): {1}", localId, peer.p2pId));                        
+                        peersToDelete.Add(peer);
+                        client.OnPeerLeft(peer.p2pId);
+                    }   
+                }
+            }
+
+            foreach( P2pNetPeer p in peersToDelete)
+                peers.Remove(p.p2pId);
+
+            List<string> whoNeedsPing = peers.Values.Where( p => p.NeedsPing()).Select(p => p.p2pId).ToList();
+            if ( whoNeedsPing.Count == 1)
+                _SendPing(whoNeedsPing[0]);
+            else if (whoNeedsPing.Count > 1)
+                _SendPing( mainChannel);                
+
+        }
+
         public void Send(string chan, string payload)
         {
             if (chan == localId)
@@ -151,7 +220,7 @@ namespace P2pNet
                 if (chan == mainChannel)
                     client.OnP2pMsg(localId, chan, payload); // main channnel loopback
 
-                Console.WriteLine(string.Format("*{0}: Send - sending appMsg to {1}", localId, (chan == mainChannel) ? "main channel" : chan));                  
+                //Console.WriteLine(string.Format("*{0}: Send - sending appMsg to {1}", localId, (chan == mainChannel) ? "main channel" : chan));                  
                 _DoSend(chan, P2pNetMessage.MsgAppl, payload);
             }
         }
@@ -165,6 +234,7 @@ namespace P2pNet
         }
 
         // Implementation methods
+        protected abstract void _Poll();        
         protected abstract string _Join(string mainChannel);
         protected abstract bool _Send(P2pNetMessage msg);
         protected abstract void _Listen(string channel);
@@ -192,7 +262,7 @@ namespace P2pNet
             {
                 return; // main channel messages from local peer will show up here
             } else if (peers.ContainsKey(msg.srcId)) {             
-                peers[msg.srcId].ResetPingTimer();
+                peers[msg.srcId].UpdateLastHeardFrom();
             }
 
             // TODO: get rid of switch
@@ -202,11 +272,15 @@ namespace P2pNet
                     _OnAppMsg(srcChannel, msg);
                     break;
                 case P2pNetMessage.MsgHello:
+                case P2pNetMessage.MsgHelloReply:                
                     _OnHelloMsg(srcChannel, msg);
                     break;
                 case P2pNetMessage.MsgGoodbye:
                     _OnByeMsg(srcChannel, msg);
                     break;
+                case P2pNetMessage.MsgPing:
+                    _OnPingMsg(srcChannel, msg);
+                    break;                    
             }
         }
         protected void _OnAppMsg(string srcChannel, P2pNetMessage msg)
@@ -214,12 +288,11 @@ namespace P2pNet
             // dispatch a received client message
             if (!peers.ContainsKey(msg.srcId))
             {
-                // Don't know this peer. Send hello directly.
-                Console.WriteLine(string.Format("*{0}: _OnAppMsg - sending hello to {1}", localId, msg.srcId));                
-                _SendHello(msg.srcId);
+                // Don't know this peer. This should not happen
+                Console.WriteLine(string.Format("*{0}: _OnAppMsg - Unknown peer {1}", localId, msg.srcId));                
                 return;
             }
-            Console.WriteLine(string.Format("*{0}: _OnAppMsg - msg from known {1}", localId, msg.srcId));            
+            //Console.WriteLine(string.Format("*{0}: _OnAppMsg - msg from {1}", localId, msg.srcId));            
             client.OnP2pMsg(msg.srcId, msg.dstChannel, msg.payload);
         }
         protected void _InitJoinParams()
@@ -244,31 +317,47 @@ namespace P2pNet
 
             if (channel == mainChannel)
                 foreach (P2pNetPeer p in peers.Values)
-                    p.lastSentToTs = nowMs;
+                    p.UpdateLastSentTo();
             else
-                peers[channel].lastSentToTs = nowMs;
+                peers[channel].UpdateLastSentTo();
         }
 
         // Some specific messages
 
-        protected void _SendHello(string channel)
+        protected void _SendHello(string channel, bool requestReply)
         {
-            _DoSend(channel, P2pNetMessage.MsgHello, client.P2pHelloData());
+            string msgType = requestReply ?  P2pNetMessage.MsgHello : P2pNetMessage.MsgHelloReply;
+            _DoSend(channel, msgType, client.P2pHelloData());
         }
 
         protected void _OnHelloMsg(string srcChannel, P2pNetMessage msg)
         {
             if (!peers.ContainsKey(msg.srcId))
             {
-                Console.WriteLine(string.Format("*{0}: _OnHelloMsg - Hello from {1}", localId, msg.srcId));                
-                P2pNetPeer p = new P2pNetPeer(this, msg.srcId, int.Parse(config["pingMs"]));
-                p.helloReceived = true;
+                //Console.WriteLine(string.Format("*{0}: _OnHelloMsg - Hello from {1}", localId, msg.srcId));                
+                P2pNetPeer p = new P2pNetPeer(msg.srcId, int.Parse(config["pingMs"]), int.Parse(config["dropMs"]));
                 p.helloData = msg.payload;
+                p.UpdateLastHeardFrom();                
                 peers[p.p2pId] = p;
-                Console.WriteLine(string.Format("*{0}: _OnHelloMsg - replying to {1}", localId, p.p2pId));                
-                _SendHello(p.p2pId);
-                client.OnPeerJoined(msg.srcId, msg.payload);
+                if ( msg.msgType == P2pNetMessage.MsgHello)
+                {
+                    //Console.WriteLine(string.Format("*{0}: _OnHelloMsg - replying to {1}", localId, p.p2pId));                
+                    _SendHello(p.p2pId, false); // we don;t want a reply
+                }
+                //Console.WriteLine(string.Format("*{0}: _OnHelloMsg - calling client.({1})", localId, p.p2pId));               
+                client.OnPeerJoined(p.p2pId, msg.payload);
             }
+        }
+
+        protected void _SendPing(string chan)
+        {
+            _DoSend(chan, P2pNetMessage.MsgPing, null);
+        }
+
+        protected void _OnPingMsg(string srcChannel, P2pNetMessage msg)
+        {
+            //Console.WriteLine(string.Format("*{0}: _OnPingMsg - Ping from {1}", localId, msg.srcId));            
+            // Don't really do anything. We already called updateLastHeardFrom for the peer
         }
 
         protected void _SendBye()
