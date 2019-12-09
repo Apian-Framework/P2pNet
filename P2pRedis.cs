@@ -8,6 +8,7 @@ namespace P2pNet
 
     public class P2pRedis : P2pNetBase
     {
+        private readonly object queueLock = new object();       
         List<P2pNetMessage> messageQueue;
         public ConnectionMultiplexer RedisCon {get; private set; } = null;
 
@@ -21,8 +22,12 @@ namespace P2pNet
         {
             if (messageQueue.Count > 0)
             {
-                List<P2pNetMessage> prevMessageQueue = messageQueue;
-                messageQueue = new List<P2pNetMessage>();                
+                List<P2pNetMessage> prevMessageQueue;
+                lock(queueLock)
+                {
+                    prevMessageQueue = messageQueue;
+                    messageQueue = new List<P2pNetMessage>();                
+                }
 
                 foreach( P2pNetMessage msg in prevMessageQueue)
                 {
@@ -57,7 +62,8 @@ namespace P2pNet
             RedisCon.GetSubscriber().Subscribe(channel, (rcvChannel, msgJSON) => {
                 P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(msgJSON);
                 //_OnReceivedNetMessage(rcvChannel, msg);
-                messageQueue.Add(msg); // queue it up
+                lock(queueLock)
+                    messageQueue.Add(msg); // queue it up
             });
         }
 
