@@ -36,12 +36,10 @@ namespace P2pNet
             }
         }
 
-        protected override string _Join(string mainChannel)
+        protected override void _Join(string mainChannel)
         {
             _Listen(mainChannel);
-            string newId = _NewP2pId();
-            _Listen(newId);
-            return newId;
+            _Listen(localId);
         }
 
         protected override void _Leave()
@@ -72,7 +70,7 @@ namespace P2pNet
             RedisCon.GetSubscriber().Unsubscribe(channel);
         }
 
-        private  string _NewP2pId()
+        protected override string _NewP2pId()
         {
             return System.Guid.NewGuid().ToString();
         }

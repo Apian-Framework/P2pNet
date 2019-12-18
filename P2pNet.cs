@@ -19,7 +19,7 @@ namespace P2pNet
         void Loop(); /// <summary> needs to be called periodically (drives message pump + group handling)</summary>
         string GetId();
         /// <returns>Local peer's P2pNet ID.</returns>       
-        string Join(string mainChannel);
+        void Join(string mainChannel);
         List<string> GetPeerIds();
         /// <returns>Remote peer;s HELLO data</returns> 
         string GetPeerData(string peerId);
@@ -147,18 +147,18 @@ namespace P2pNet
             connectionStr = _connectionStr;
             logger = UniLogger.GetLogger("P2pNet");
             _InitJoinParams();
+            localId = _NewP2pId();
         }
 
         // IP2pNet
         public string GetId() => localId;
-        public string Join(string _mainChannel)
+        public void Join(string _mainChannel)
         {
             _InitJoinParams();
             mainChannel = _mainChannel;
-            localId = _Join(mainChannel);
+            _Join(mainChannel);
             logger.Info(string.Format("*{0}: Join - Sending hello to main channel", localId));
             _SendHello(mainChannel, true);
-            return localId;
         }
         public List<string> GetPeerIds() => peers.Keys.ToList();
         public string GetPeerData(string peerId)
@@ -238,11 +238,12 @@ namespace P2pNet
 
         // Implementation methods
         protected abstract void _Poll();        
-        protected abstract string _Join(string mainChannel);
+        protected abstract void _Join(string mainChannel);
         protected abstract bool _Send(P2pNetMessage msg);
         protected abstract void _Listen(string channel);
         protected abstract void _StopListening(string channel);
         protected abstract void _Leave();
+        protected abstract string _NewP2pId();
 
         // Transport-independent tasks
         public void OnPingTimeout(P2pNetPeer p)
@@ -302,7 +303,7 @@ namespace P2pNet
         {
             peers = new Dictionary<string, P2pNetPeer>();
             lastMsgIdSent = new Dictionary<string, long>();
-            localId = null;
+            mainChannel = null;
         }
 
         protected long _NextMsgId(string chan)
@@ -367,7 +368,6 @@ namespace P2pNet
 
         protected void _SendBye()
         {
-            object helloData = client.P2pHelloData();
             _DoSend(mainChannel, P2pNetMessage.MsgGoodbye, null);
         }
 
