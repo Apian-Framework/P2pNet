@@ -12,13 +12,13 @@ namespace P2pNet
         string P2pHelloData();
         void OnPeerJoined(string p2pId, string helloData);
         void OnPeerLeft(string p2pId);
-        void OnP2pMsg(string from, string to, string payload);
+        void OnClientMsg(string from, string to, string payload);
     }
     public interface IP2pNet
     {
         void Loop(); /// <summary> needs to be called periodically (drives message pump + group handling)</summary>
-        string GetId();
-        /// <returns>Local peer's P2pNet ID.</returns>       
+        string GetId(); /// <returns>Local peer's P2pNet ID.</returns>  
+        string GetMainChannel();     
         void Join(string mainChannel);
         List<string> GetPeerIds();
         /// <returns>Remote peer;s HELLO data</returns> 
@@ -152,6 +152,7 @@ namespace P2pNet
 
         // IP2pNet
         public string GetId() => localId;
+        public string GetMainChannel() => mainChannel;
         public void Join(string _mainChannel)
         {
             _InitJoinParams();
@@ -218,10 +219,10 @@ namespace P2pNet
         {
             if (chan == localId)
             {
-                client.OnP2pMsg(localId, localId, payload); // direct loopback
+                client.OnClientMsg(localId, localId, payload); // direct loopback
             } else {
                 if (chan == mainChannel)
-                    client.OnP2pMsg(localId, chan, payload); // main channnel loopback
+                    client.OnClientMsg(localId, chan, payload); // main channnel loopback
 
                 logger.Info(string.Format("*{0}: Send - sending appMsg to {1}", localId, (chan == mainChannel) ? "main channel" : chan));                  
                 _DoSend(chan, P2pNetMessage.MsgAppl, payload);
@@ -297,7 +298,7 @@ namespace P2pNet
                 return;
             }
             logger.Info(string.Format("*{0}: _OnAppMsg - msg from {1}", localId, msg.srcId));            
-            client.OnP2pMsg(msg.srcId, msg.dstChannel, msg.payload);
+            client.OnClientMsg(msg.srcId, msg.dstChannel, msg.payload);
         }
         protected void _InitJoinParams()
         {
