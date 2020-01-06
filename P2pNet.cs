@@ -224,7 +224,7 @@ namespace P2pNet
                 if (chan == mainChannel)
                     client.OnClientMsg(localId, chan, payload); // main channnel loopback
 
-                logger.Info(string.Format("*{0}: Send - sending appMsg to {1}", localId, (chan == mainChannel) ? "main channel" : chan));                  
+                logger.Debug(string.Format("*{0}: Send - sending appMsg to {1}", localId, (chan == mainChannel) ? "main channel" : chan));                  
                 _DoSend(chan, P2pNetMessage.MsgAppl, payload);
             }
         }
@@ -297,7 +297,7 @@ namespace P2pNet
                 logger.Warn(string.Format("*{0}: _OnAppMsg - Unknown peer {1}", localId, msg.srcId));                
                 return;
             }
-            logger.Info(string.Format("*{0}: _OnAppMsg - msg from {1}", localId, msg.srcId));            
+            logger.Debug(string.Format("*{0}: _OnAppMsg - msg from {1}", localId, msg.srcId));            
             client.OnClientMsg(msg.srcId, msg.dstChannel, msg.payload);
         }
         protected void _InitJoinParams()
