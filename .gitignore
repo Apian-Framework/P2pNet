@@ -8,3 +8,4 @@
 srcassets/
 .vscode/
 *.meta
+*.code-workspace
