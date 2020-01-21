@@ -6,13 +6,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Apache.NMS.ActiveMQ.NetStd" Version="1.7.2.4115" />
+    <PackageReference Include="StackExchange.Redis" Version="2.0.601" />  
     <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
-    <PackageReference Include="StackExchange.Redis" Version="2.0.601" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\UniLog\UniLog.csproj" />
+    <ProjectReference Include="..\P2pNet.Base\P2pNet.Base.csproj" />
   </ItemGroup>
 
 </Project>
