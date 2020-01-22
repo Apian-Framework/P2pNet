@@ -10,7 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\UniLog\UniLog.csproj" />
+    <ProjectReference Include="..\..\UniLog\UniLog.csproj" />
   </ItemGroup>
 
 </Project>
