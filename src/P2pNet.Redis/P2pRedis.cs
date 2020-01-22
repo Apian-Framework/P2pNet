@@ -14,7 +14,7 @@ namespace P2pNet
 
         public P2pRedis(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null) : base(_client, _connectionString,  _config)
         {
-            RedisCon = ConnectionMultiplexer.Connect(_connectionString);
+            RedisCon = ConnectionMultiplexer.Connect(_connectionString);            
             messageQueue = new List<P2pNetMessage>();
         }
 
@@ -51,7 +51,7 @@ namespace P2pNet
         protected override bool _Send(P2pNetMessage msg)
         {
             string msgJSON = JsonConvert.SerializeObject(msg);
-            RedisCon.GetSubscriber().Publish(msg.dstChannel, msgJSON);
+            RedisCon.GetSubscriber().PublishAsync(msg.dstChannel, msgJSON);
             return true;
         }
 
