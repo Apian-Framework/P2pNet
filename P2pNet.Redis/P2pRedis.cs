@@ -59,7 +59,7 @@ namespace P2pNet
         {
             RedisCon.GetSubscriber().Subscribe(channel, (rcvChannel, msgJSON) => {
                 P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(msgJSON);
-                //_OnReceivedNetMessage(rcvChannel, msg);
+                _AddReceiptTimestamp(msg);
                 lock(queueLock)
                     messageQueue.Add(msg); // queue it up
             });
@@ -74,6 +74,11 @@ namespace P2pNet
         {
             return System.Guid.NewGuid().ToString();
         }
+
+        protected override void _AddReceiptTimestamp(P2pNetMessage msg)
+        {
+            msg.rcptTime = nowMs;
+        }        
 
     }
 }

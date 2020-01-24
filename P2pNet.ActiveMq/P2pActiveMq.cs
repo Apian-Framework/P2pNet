@@ -67,6 +67,7 @@ namespace P2pNet
         {
             ITextMessage txtMsg = receivedMsg as ITextMessage;
             P2pNetMessage p2pMsg = JsonConvert.DeserializeObject<P2pNetMessage>(txtMsg.Text);
+            _AddReceiptTimestamp(p2pMsg);
             lock(queueLock)
                 messageQueue.Add(p2pMsg); // queue it up            
         }
@@ -109,10 +110,8 @@ namespace P2pNet
                 logger.Warn($"_StopListening(): Not listening to {channel}");
         }
 
-        protected override string _NewP2pId()
-        {
-            return System.Guid.NewGuid().ToString();
-        }
+        protected override string _NewP2pId() => System.Guid.NewGuid().ToString();
+        protected override void _AddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = nowMs;        
 
     }
 }

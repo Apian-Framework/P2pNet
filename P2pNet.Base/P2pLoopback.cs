@@ -47,8 +47,11 @@ namespace P2pNet
         }
         protected override bool _Send(P2pNetMessage msg)
         {
-            if (listeningTo.Contains(msg.dstChannel))
-                messageQueue.Add(msg);
+            if (listeningTo.Contains(msg.dstChannel)) 
+            {
+                _AddReceiptTimestamp(msg);
+                messageQueue.Add(msg);                
+            }
             return true;
         }
 
@@ -66,6 +69,8 @@ namespace P2pNet
         {
             return System.Guid.NewGuid().ToString();
         }
+
+        protected override void _AddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = nowMs;
 
     }
 }

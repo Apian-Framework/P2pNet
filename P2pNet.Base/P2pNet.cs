@@ -29,7 +29,8 @@ namespace P2pNet
     }
 
     public class P2pNetPeer
-    {       
+    {    
+                   
         public string p2pId;
         public string helloData; 
         protected long firstHelloSentTs = 0; // when did we FIRST send a hello/hello req? (for knowing when to give up)
@@ -83,7 +84,6 @@ namespace P2pNet
 
         public void UpdateLastHeardFrom() =>  lastHeardTs = P2pNetBase.nowMs;
         public void UpdateLastSentTo() =>  lastSentToTs = P2pNetBase.nowMs;
-
         public bool NeedsPing() => (P2pNetBase.nowMs - lastSentToTs) > pingTimeoutMs;
 
         public bool ValidateMsgId(long msgId)
@@ -104,12 +104,14 @@ namespace P2pNet
         public const string MsgHello = "HELLO"; // recipient should reply
         public const string MsgHelloReply = "HRPLY"; // do not reply
         public const string MsgGoodbye = "BYE";
-        public const string MsgPing = "PING";
-        public const string MsgPingReply = "PNGRPLY";        
+        public const string MsgPing = "PING";      
         public const string MsgAppl = "APPMSG";
+
         public string dstChannel;
         public string srcId;
         public long msgId;
+        public long sentTime; // millisecs timestamp at sender
+        public long rcptTime; // millisecs timestamp at recipient (here)
         public string msgType;
         public string payload; // string or json-encoded application object
 
@@ -120,6 +122,8 @@ namespace P2pNet
             msgId = _msgId;
             msgType = _msgType;
             payload = _payload;
+            sentTime = -1; // gets set on send
+            rcptTime = -1; // gets set on receipt            
         }
     }
 
@@ -170,7 +174,6 @@ namespace P2pNet
                 return null;
             }
         }
-
         public void Loop()
         {
             if (localId == null) 
@@ -245,6 +248,7 @@ namespace P2pNet
         protected abstract void _StopListening(string channel);
         protected abstract void _Leave();
         protected abstract string _NewP2pId();
+        protected abstract void _AddReceiptTimestamp(P2pNetMessage msg);
 
         // Transport-independent tasks
         public void OnPingTimeout(P2pNetPeer p)
@@ -258,6 +262,7 @@ namespace P2pNet
             // Send() is the API for client messages
             long msgId = _NextMsgId(dstChan);
             P2pNetMessage p2pMsg = new P2pNetMessage(dstChan, localId, msgId, msgType, payload);
+            p2pMsg.sentTime = nowMs; // should not happen in ctor
             if (_Send(p2pMsg))
                 _UpdateSendStats(dstChan, msgId);
         }
