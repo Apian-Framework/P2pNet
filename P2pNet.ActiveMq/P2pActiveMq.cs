@@ -7,22 +7,11 @@ using Newtonsoft.Json;
 namespace P2pNet
 {
 
-    // This might be a stupid way to do loopback,
-    // especially since messages to mainChannel and localId are already handled
-    // in the base class
     public class P2pActiveMq : P2pNetBase
     {  
         private IConnection connection;
         private ISession session;      
-        // private class ProdConsPair
-        // {
-        //     public IMessageProducer producer;
-        //     public IMessageConsumer consumer;
-        //     public ProdConsPair(IMessageProducer p, IMessageConsumer c) {producer=p; consumer=c;}
-        // }
-
         Dictionary<string, MessageListener> listeningDict;
-
         private List<P2pNetMessage> messageQueue;
         private readonly object queueLock = new object();           
 
@@ -31,7 +20,7 @@ namespace P2pNet
             messageQueue = new List<P2pNetMessage>();
             listeningDict = new Dictionary<string, MessageListener>();
 
-            // string brokerUri = $"username,password,activemq:tcp://hostname:61616"; 
+            // Example: "username,password,activemq:tcp://hostname:61616"; 
             string[] parts = _connectionString.Split(new string[]{","},StringSplitOptions.None);            
             IConnectionFactory factory = new ConnectionFactory(parts[2]);
             connection = factory.CreateConnection(parts[0], parts[1]);
@@ -77,6 +66,7 @@ namespace P2pNet
             session.Close();
             connection.Close();
         }
+
         protected override bool _Send(P2pNetMessage msg)
         {
             IDestination dest = session.GetTopic(msg.dstChannel);
@@ -111,7 +101,8 @@ namespace P2pNet
         }
 
         protected override string _NewP2pId() => System.Guid.NewGuid().ToString();
-        protected override void _AddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = nowMs;        
+        
+        protected override void _AddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = NowMs;        
 
     }
 }

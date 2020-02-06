@@ -48,6 +48,7 @@ namespace P2pNet
             RedisCon.Close();
             RedisCon = ConnectionMultiplexer.Connect(connectionStr);
         }
+
         protected override bool _Send(P2pNetMessage msg)
         {
             string msgJSON = JsonConvert.SerializeObject(msg);
@@ -77,7 +78,7 @@ namespace P2pNet
 
         protected override void _AddReceiptTimestamp(P2pNetMessage msg)
         {
-            msg.rcptTime = nowMs;
+            msg.rcptTime = NowMs;
         }        
 
     }
