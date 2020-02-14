@@ -366,7 +366,7 @@ namespace P2pNet
                     msSinceSend = 0;
                 }
 
-                logger.Debug(string.Format("_OnAppMsg - msg from {1}",  msg.srcId));            
+                logger.Debug(string.Format("_OnAppMsg - msg from {0}",  msg.srcId));            
                 client.OnClientMsg(msg.srcId, msg.dstChannel, msSinceSend, msg.payload);            
 
             } else {
