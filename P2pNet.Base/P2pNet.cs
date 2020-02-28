@@ -11,6 +11,7 @@ namespace P2pNet
     {
         string P2pHelloData(); // Hello data FOR remote peer. Probably JSON-encoded by the p2pnet client.
         void OnPeerJoined(string p2pId, string helloData);
+        void OnPeerSync(string p2pId, long clockOffsetMs, long netLagMs);
         void OnPeerLeft(string p2pId);
         void OnClientMsg(string from, string to, long msSinceSent, string payload);
     }
@@ -485,11 +486,13 @@ namespace P2pNet
                     payload.t3 = msg.rcptTime;   
                     _DoSend(from, P2pNetMessage.MsgSync, JsonConvert.SerializeObject(payload)); // send reply   
                     peer.UpdateClockSync(payload.t0, payload.t1, payload.t2, payload.t3); 
-                    logger.Info($"Synced (org) {from} Lag: {peer.NetworkLagMs}, Offset: {peer.ClockOffsetMs}");                  
+                    logger.Info($"Synced (org) {from} Lag: {peer.NetworkLagMs}, Offset: {peer.ClockOffsetMs}");
+                    client.OnPeerSync(peer.p2pId, peer.ClockOffsetMs, peer.NetworkLagMs);                  
                 } else {
                     // we're the recipient and it's done
                     peer.UpdateClockSync(payload.t2, payload.t3, msg.sentTime, msg.rcptTime); 
-                    logger.Info($"Synced (rcp) {from} Lag: {peer.NetworkLagMs}, Offset: {peer.ClockOffsetMs}");                    
+                    logger.Info($"Synced (rcp) {from} Lag: {peer.NetworkLagMs}, Offset: {peer.ClockOffsetMs}");  
+                    client.OnPeerSync(peer.p2pId, peer.ClockOffsetMs, peer.NetworkLagMs);                                        
                 }
             } else {
                logger.Warn($"Got sync from unknown peer: {from}. Ignoring.");
