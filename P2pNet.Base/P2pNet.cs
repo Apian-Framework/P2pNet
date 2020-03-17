@@ -22,11 +22,29 @@ namespace P2pNet
         string GetId(); // Local peer's P2pNet ID.
         string GetMainChannel();     
         void Join(string mainChannel);
+        void AddSubchannel(string subChannel);        
+        void RemoveSubchannel(string subChannel);     
         List<string> GetPeerIds();
         string GetPeerData(string peerId); // Remote peer's HELLO data
+        PeerClockSyncData GetPeerClockSyncData(string peerId); 
         void Leave();
         void Send(string chan, string payload);
         void AddPeer(string peerId);
+    }
+
+    public class PeerClockSyncData
+    {
+        public string peerId;
+        public long networkLagMs; // round trip time / 2
+        public long clockOffsetMs; // localTime + offset = peerTime  
+        public long msSinceLastSync;  
+        public PeerClockSyncData(string pid, long since, long offset, long lag)
+        {
+            peerId = pid;
+            msSinceLastSync = since;
+            networkLagMs = lag;
+            clockOffsetMs = offset;
+        }     
     }
 
     public class P2pNetPeer
@@ -42,9 +60,11 @@ namespace P2pNet
         protected long lastMsgId = 0; // Last msg rcvd from this peer. Each peer tags each mesage with a serial # (nextMsgId in P2PNetBase)
         protected int pingTimeoutMs;
         protected int dropTimeoutMs;   
-        protected int syncTimeoutMs;          
+        protected int syncTimeoutMs;      
+  
         public  long NetworkLagMs {get; private set;} = 0; // round trip time / 2
-        public long ClockOffsetMs {get; private set;} = 0; // localTime + offset = peerTime             
+        public long ClockOffsetMs {get; private set;} = 0; // localTime + offset = peerTime
+        public long MsSinceClockSync { get => lastClockSyncMs == 0 ? -1 : (CurrentlySyncing() ? syncTimeoutMs :   P2pNetBase.NowMs - lastClockSyncMs); } // -1 if never synced
 
         public P2pNetPeer(string _p2pId, int _pingMs, int _dropMs, int _syncMs)
         {
@@ -178,10 +198,11 @@ namespace P2pNet
 
         public Dictionary<string, string> config;
         protected string localId;
-        protected string mainChannel; // broadcasts go here
         protected IP2pNetClient client;
         protected string connectionStr; // Transport-dependent format
+        protected string mainChannel; // broadcasts go here        
         protected Dictionary<string, P2pNetPeer> peers;
+        protected List<string> subChannels; // other non-peer channels we are using
         protected Dictionary<string, long> lastMsgIdSent; // last Id sent to each channel/peer
         public UniLogger logger;
 
@@ -222,6 +243,16 @@ namespace P2pNet
                 return null;
             }
         }
+
+        public PeerClockSyncData GetPeerClockSyncData(string peerId)
+        {
+            try {
+                P2pNetPeer p = peers[peerId];
+                return new PeerClockSyncData(p.p2pId, p.MsSinceClockSync, p.ClockOffsetMs, p.NetworkLagMs);
+            } catch(KeyNotFoundException) {
+                return null;
+            }
+        }        
 
         public void Loop()
         {
@@ -286,6 +317,24 @@ namespace P2pNet
         }
 
         public void AddPeer(string peerId) {} // really only makes sense for direct-connection transports
+
+        public void AddSubchannel(string chan)
+        {
+            if (!subChannels.Contains(chan))
+            {
+                subChannels.Add(chan);
+                _Listen(chan);
+            }
+        }
+
+        public void RemoveSubchannel(string chan)
+        {
+            if (subChannels.Contains(chan))
+            {
+                subChannels.Remove(chan);
+                _StopListening(chan);
+            }
+        }
 
         public void Leave()
         {
@@ -380,6 +429,7 @@ namespace P2pNet
             peers = new Dictionary<string, P2pNetPeer>();
             lastMsgIdSent = new Dictionary<string, long>();
             mainChannel = null;
+            subChannels = new List<string>();
         }
 
         protected long _NextMsgId(string chan)
@@ -397,9 +447,10 @@ namespace P2pNet
 
             if (channel == mainChannel)
                 foreach (P2pNetPeer p in peers.Values)
-                    p.UpdateLastSentTo();
+                    p.UpdateLastSentTo(); // so we don't ping until it's needed
             else
-                peers[channel].UpdateLastSentTo();
+                if (peers.Keys.Contains(channel)) // TODO: Channel messages other then mainChannel don't count for ping timeouts.
+                    peers[channel].UpdateLastSentTo();
         }
 
         // Some specific messages
