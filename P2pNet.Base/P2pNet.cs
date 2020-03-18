@@ -308,10 +308,10 @@ namespace P2pNet
             {
                 client.OnClientMsg(localId, localId, 0, payload); // direct loopback
             } else {
-                if (chan == mainChannel)
-                    client.OnClientMsg(localId, chan, 0, payload); // main channnel loopback
+                if (chan == mainChannel || subChannels.Contains(chan))
+                    client.OnClientMsg(localId, chan, 0, payload); // broadcast channnel loopback
 
-                //logger.Debug(string.Format("*{0}: Send - sending appMsg to {1}", localId, (chan == mainChannel) ? "main channel" : chan));                  
+                logger.Debug(string.Format("*{0}: Send - sending appMsg to {1}", localId, (chan == mainChannel) ? "main channel" : chan));                  
                 _DoSend(chan, P2pNetMessage.MsgAppl, payload);
             }
         }
@@ -322,6 +322,7 @@ namespace P2pNet
         {
             if (!subChannels.Contains(chan))
             {
+                logger.Info($"Listening to subchannel: {chan}");
                 subChannels.Add(chan);
                 _Listen(chan);
             }
@@ -466,7 +467,7 @@ namespace P2pNet
         {
             if (!peers.ContainsKey(msg.srcId))
             {
-                logger.Info(string.Format("*{0}: _OnHelloMsg - Hello from {1}", localId, msg.srcId));                
+                logger.Verbose(string.Format("*{0}: _OnHelloMsg - Hello from {1}", localId, msg.srcId));                
                 // TODO: should jsut send config dict
                 P2pNetPeer p = new P2pNetPeer(msg.srcId, int.Parse(config["pingMs"]), int.Parse(config["dropMs"]), int.Parse(config["syncMs"]));
                 p.helloData = msg.payload;
@@ -474,10 +475,10 @@ namespace P2pNet
                 peers[p.p2pId] = p;
                 if ( msg.msgType == P2pNetMessage.MsgHello)
                 {
-                    logger.Info(string.Format("*{0}: _OnHelloMsg - replying to {1}", localId, p.p2pId));                
+                    logger.Verbose(string.Format("*{0}: _OnHelloMsg - replying to {1}", localId, p.p2pId));                
                     _SendHello(p.p2pId, false); // we don;t want a reply
                 }
-                logger.Info(string.Format("*{0}: _OnHelloMsg - calling client.({1})", localId, p.p2pId));               
+                logger.Verbose(string.Format("*{0}: _OnHelloMsg - calling client.({1})", localId, p.p2pId));               
                 client.OnPeerJoined(p.p2pId, msg.payload);
             }
         }
@@ -485,13 +486,13 @@ namespace P2pNet
         protected void _SendPing(string chan)
         {
             string toWhom = chan == mainChannel ? "Everyone" : chan;
-            logger.Info(string.Format($"{localId}: _SendPing() - Sending to {toWhom}" ));            
+            logger.Verbose(string.Format($"{localId}: _SendPing() - Sending to {toWhom}" ));            
             _DoSend(chan, P2pNetMessage.MsgPing, null);
         }
 
         protected void _OnPingMsg(string srcChannel, P2pNetMessage msg)
         {
-            logger.Info(string.Format("*{0}: _OnPingMsg - Ping from {1}", localId, msg.srcId));            
+            logger.Verbose(string.Format("*{0}: _OnPingMsg - Ping from {1}", localId, msg.srcId));            
             // Don't really do anything. We already called updateLastHeardFrom for the peer
         }
 
@@ -537,12 +538,12 @@ namespace P2pNet
                     payload.t3 = msg.rcptTime;   
                     _DoSend(from, P2pNetMessage.MsgSync, JsonConvert.SerializeObject(payload)); // send reply   
                     peer.UpdateClockSync(payload.t0, payload.t1, payload.t2, payload.t3); 
-                    logger.Info($"Synced (org) {from} Lag: {peer.NetworkLagMs}, Offset: {peer.ClockOffsetMs}");
+                    logger.Verbose($"Synced (org) {from} Lag: {peer.NetworkLagMs}, Offset: {peer.ClockOffsetMs}");
                     client.OnPeerSync(peer.p2pId, peer.ClockOffsetMs, peer.NetworkLagMs);                  
                 } else {
                     // we're the recipient and it's done
                     peer.UpdateClockSync(payload.t2, payload.t3, msg.sentTime, msg.rcptTime); 
-                    logger.Info($"Synced (rcp) {from} Lag: {peer.NetworkLagMs}, Offset: {peer.ClockOffsetMs}");  
+                    logger.Verbose($"Synced (rcp) {from} Lag: {peer.NetworkLagMs}, Offset: {peer.ClockOffsetMs}");  
                     client.OnPeerSync(peer.p2pId, peer.ClockOffsetMs, peer.NetworkLagMs);                                        
                 }
             } else {
