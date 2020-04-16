@@ -8,13 +8,13 @@ namespace P2pNet
 
     public class P2pRedis : P2pNetBase
     {
-        private readonly object queueLock = new object();       
+        private readonly object queueLock = new object();
         List<P2pNetMessage> messageQueue;
         public ConnectionMultiplexer RedisCon {get; private set; } = null;
 
         public P2pRedis(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null) : base(_client, _connectionString,  _config)
         {
-            RedisCon = ConnectionMultiplexer.Connect(_connectionString);            
+            RedisCon = ConnectionMultiplexer.Connect(_connectionString);
             messageQueue = new List<P2pNetMessage>();
         }
 
@@ -26,12 +26,12 @@ namespace P2pNet
                 lock(queueLock)
                 {
                     prevMessageQueue = messageQueue;
-                    messageQueue = new List<P2pNetMessage>();                
+                    messageQueue = new List<P2pNetMessage>();
                 }
 
                 foreach( P2pNetMessage msg in prevMessageQueue)
                 {
-                    _OnReceivedNetMessage(msg.dstChannel, msg);                   
+                    _OnReceivedNetMessage(msg.dstChannel, msg);
                 }
             }
         }
@@ -79,7 +79,7 @@ namespace P2pNet
         protected override void _AddReceiptTimestamp(P2pNetMessage msg)
         {
             msg.rcptTime = NowMs;
-        }        
+        }
 
     }
 }
