@@ -58,8 +58,27 @@ namespace P2pNet
 
         protected override void _Listen(string channel)
         {
+            _ListenConcurrent(channel);
+            //_ListenSequential(channel);
+        }
+
+        protected  void _ListenConcurrent(string channel)
+        {
             RedisCon.GetSubscriber().Subscribe(channel, (rcvChannel, msgJSON) => {
                 P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(msgJSON);
+                _AddReceiptTimestamp(msg);
+                lock(queueLock)
+                    messageQueue.Add(msg); // queue it up
+            });
+        }
+
+        protected void _ListenSequential(string channel)
+        {
+            var rcvChannel = RedisCon.GetSubscriber().Subscribe(channel);
+
+            rcvChannel.OnMessage(channelMsg =>
+            {
+                P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(channelMsg.Message);
                 _AddReceiptTimestamp(msg);
                 lock(queueLock)
                     messageQueue.Add(msg); // queue it up
