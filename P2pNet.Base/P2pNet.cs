@@ -379,10 +379,11 @@ namespace P2pNet
 
         protected void _OnReceivedNetMessage(string srcChannel, P2pNetMessage msg)
         {
+            // Local messages have already been processed
             if (msg.srcId == localId)
-            {
                 return; // main channel messages from local peer will show up here
-            } else if (peers.ContainsKey(msg.srcId)) {
+
+            if (peers.ContainsKey(msg.srcId)) {
                 peers[msg.srcId].UpdateLastHeardFrom();
             }
 
