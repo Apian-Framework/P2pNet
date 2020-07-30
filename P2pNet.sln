@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26124.0
 MinimumVisualStudioVersion = 15.0.26124.0
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "P2pNet.Base", "P2pNet.Base\P2pNet.Base.csproj", "{99643E21-1C32-4A22-9C1E-8BFD89040DA9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "P2pNet.Base", "src\P2pNet.Base\P2pNet.Base.csproj", "{99643E21-1C32-4A22-9C1E-8BFD89040DA9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "P2pNet.ActiveMq", "P2pNet.ActiveMq\P2pNet.ActiveMq.csproj", "{7D5BCB90-4D1C-45E5-AD01-2FDA0F9B4BE3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "P2pNet.ActiveMq", "src\P2pNet.ActiveMq\P2pNet.ActiveMq.csproj", "{7D5BCB90-4D1C-45E5-AD01-2FDA0F9B4BE3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "P2pNet.Redis", "P2pNet.Redis\P2pNet.Redis.csproj", "{2EEC8E8C-806C-4D11-8253-3DFEABDFC7B8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "P2pNet.Redis", "src\P2pNet.Redis\P2pNet.Redis.csproj", "{2EEC8E8C-806C-4D11-8253-3DFEABDFC7B8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
