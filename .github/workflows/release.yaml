@@ -33,9 +33,12 @@ jobs:
         run: dotnet test --no-restore --verbosity normal
       - name: Create Package
         run: dotnet pack -c Release /p:Version=${{ github.event.release.tag_name }} /p:PackageReleaseNotes="See https://github.com/${{ github.repository }}/releases/tag/${{ github.event.release.tag_name }}"
+      - name: Hack! Override nuget.config access token (it cannot push a package)
+        run: echo "$(sed 's/\(_authToken=\)[a-z0-9]*\($\)/\1${{ env.GITHUB_TOKEN }}\2/g' nuget.config)" > nuget.config
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
       - name: Publish the package to GPR
         run: dotnet nuget push **/*.nupkg
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
 
