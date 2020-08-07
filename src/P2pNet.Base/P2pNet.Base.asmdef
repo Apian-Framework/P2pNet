@@ -1,0 +1,17 @@
+{
+    "name": "P2pNet.Base",
+    "references": [
+        "GUID:dd4435a33dc265c46bc98584a7a64aaf"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "Newtonsoft.Json.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
