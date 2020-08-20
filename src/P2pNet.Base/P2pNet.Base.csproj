@@ -12,8 +12,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="UniLog" Version="1.0.0" Condition="'$(UniLogSource)' != 'local'" />
-    <ProjectReference Include="..\..\..\UniLog\src\Unilog\UniLog.csproj" Condition="'$(UniLogSource)' == 'local'" />
+    <PackageReference Include="UniLog" Version="1.0.0" Condition="'$(UniLogSource)' == 'package'" />
+    <ProjectReference Include="..\..\..\UniLog\src\Unilog\UniLog.csproj" Condition="'$(UniLogSource)' != 'package'" />
   </ItemGroup>
 
 </Project>
