@@ -1,15 +1,15 @@
 {
-    "name": "P2pNet.Redis",
+    "name": "P2pRedis",
     "references": [
-        "P2pNet.Base"
+        "P2pNet"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": true,
     "precompiledReferences": [
-        "StackExchange.Redis.dll",
-        "Newtonsoft.Json.dll"
+        "Newtonsoft.Json.dll",
+        "StackExchange.Redis.dll"
     ],
     "autoReferenced": true,
     "defineConstraints": [],

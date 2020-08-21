@@ -1,12 +1,16 @@
 {
-    "name": "com.apian-framework.p2pnet.base",
-    "displayName": "P2pNet.Base",
-    "version": "1.0.2",
-    "unity": "2018.1",
-    "description": "P2pNet network shim base",
-    "keywords": [
-        "network",
-        "unity"
-    ],
-    "category": "Unity"
+  "name": "com.apian-framework.p2pnet.base",
+  "displayName": "P2pNet.Base",
+  "version": "1.0.2",
+  "unity": "2018.1",
+  "description": "P2pNet network shim base",
+  "keywords": [
+    "network",
+    "unity"
+  ],
+  "category": "Unity",
+  "type": "library",
+  "dependencies": {
+    "com.apian-framework.unilog": "1.0.4"
+  }
 }

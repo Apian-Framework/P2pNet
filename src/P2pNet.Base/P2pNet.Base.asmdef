@@ -1,7 +1,7 @@
 {
-    "name": "P2pNet.Base",
+    "name": "P2pNet",
     "references": [
-        "GUID:dd4435a33dc265c46bc98584a7a64aaf"
+        "UniLog"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
