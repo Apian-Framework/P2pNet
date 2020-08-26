@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="UniLog" Version="1.0.0" Condition="'$(UniLogSource)' == 'package'" />
-    <ProjectReference Include="..\..\..\UniLog\src\Unilog\UniLog.csproj" Condition="'$(UniLogSource)' != 'package'" />
+    <ProjectReference Include="..\..\..\UniLog\src\UniLog\UniLog.csproj" Condition="'$(UniLogSource)' != 'package'" />
   </ItemGroup>
 
 </Project>
