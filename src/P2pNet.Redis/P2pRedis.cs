@@ -14,8 +14,27 @@ namespace P2pNet
 
         public P2pRedis(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null) : base(_client, _connectionString,  _config)
         {
-            RedisCon = ConnectionMultiplexer.Connect(_connectionString);
+            try {
+              RedisCon = ConnectionMultiplexer.Connect(_connectionString);
+            } catch (StackExchange.Redis.RedisConnectionException ex) {
+                throw( new Exception($"{GuessRedisProblem(ex.Message)}"));
+            } catch (System.ArgumentException ex) {
+                throw( new Exception($"Bad connection string: {ex.Message}"));
+            }
             messageQueue = new List<P2pNetMessage>();
+        }
+
+        private string GuessRedisProblem(string exMsg)
+        {
+            // RedisConnectionException messages can be pretty long and unhelpful
+            // to the user, but the Message property is the only indication what sort
+            // of problem has occurred.
+            string msg = exMsg;
+            if (exMsg.Contains("authentication"))
+                msg = "Redis suthentication failure";
+            if (exMsg.Contains("UnableToConnect on"))
+                msg = "Unable to connect to Redis host"; // TODO: parse the bad host out of the message and include it
+            return msg;
         }
 
         protected override void _Poll()
