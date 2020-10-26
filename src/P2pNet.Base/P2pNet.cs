@@ -361,11 +361,12 @@ namespace P2pNet
 
         // Transport-independent tasks
 
-        public void OnPingTimeout(P2pNetPeer p)
-        {
-            client.OnPeerLeft(p.p2pId); // TODO: should say that it wasn;t a good leave
-            peers.Remove(p.p2pId);
-        }
+        // TODO: No longer used. Remove.  &&&&
+        // public void OnPingTimeout(P2pNetPeer p)
+        // {
+        //     client.OnPeerLeft(p.p2pId); // TODO: should say that it wasn;t a good leave
+        //     peers.Remove(p.p2pId);
+        // }
 
         protected void _DoSend(string dstChan, string msgType, string payload)
         {
