@@ -9,6 +9,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "P2pNet.ActiveMq", "src\P2pN
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "P2pNet.Redis", "src\P2pNet.Redis\P2pNet.Redis.csproj", "{2EEC8E8C-806C-4D11-8253-3DFEABDFC7B8}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{EC833D71-D7F1-4877-8A43-DC3FAE303E5B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "P2pNet.Base.Tests", "tests\P2pNet.Base.Tests\P2pNet.Base.Tests.csproj", "{60368515-2C01-4BD8-A563-73ED2EE315BF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -58,5 +62,20 @@ Global
 		{2EEC8E8C-806C-4D11-8253-3DFEABDFC7B8}.Release|x64.Build.0 = Release|Any CPU
 		{2EEC8E8C-806C-4D11-8253-3DFEABDFC7B8}.Release|x86.ActiveCfg = Release|Any CPU
 		{2EEC8E8C-806C-4D11-8253-3DFEABDFC7B8}.Release|x86.Build.0 = Release|Any CPU
+		{60368515-2C01-4BD8-A563-73ED2EE315BF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{60368515-2C01-4BD8-A563-73ED2EE315BF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{60368515-2C01-4BD8-A563-73ED2EE315BF}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{60368515-2C01-4BD8-A563-73ED2EE315BF}.Debug|x64.Build.0 = Debug|Any CPU
+		{60368515-2C01-4BD8-A563-73ED2EE315BF}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{60368515-2C01-4BD8-A563-73ED2EE315BF}.Debug|x86.Build.0 = Debug|Any CPU
+		{60368515-2C01-4BD8-A563-73ED2EE315BF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{60368515-2C01-4BD8-A563-73ED2EE315BF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{60368515-2C01-4BD8-A563-73ED2EE315BF}.Release|x64.ActiveCfg = Release|Any CPU
+		{60368515-2C01-4BD8-A563-73ED2EE315BF}.Release|x64.Build.0 = Release|Any CPU
+		{60368515-2C01-4BD8-A563-73ED2EE315BF}.Release|x86.ActiveCfg = Release|Any CPU
+		{60368515-2C01-4BD8-A563-73ED2EE315BF}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{60368515-2C01-4BD8-A563-73ED2EE315BF} = {EC833D71-D7F1-4877-8A43-DC3FAE303E5B}
 	EndGlobalSection
 EndGlobal
