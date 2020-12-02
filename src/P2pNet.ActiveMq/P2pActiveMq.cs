@@ -102,7 +102,7 @@ namespace P2pNet
 
         protected override string _NewP2pId() => System.Guid.NewGuid().ToString();
 
-        protected override void _AddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = NowMs;
+        protected override void _AddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = P2pNetDateTime.NowMs;
 
     }
 }

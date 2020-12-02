@@ -116,7 +116,7 @@ namespace P2pNet
 
         protected override void _AddReceiptTimestamp(P2pNetMessage msg)
         {
-            msg.rcptTime = NowMs;
+            msg.rcptTime = P2pNetDateTime.NowMs;
         }
 
     }

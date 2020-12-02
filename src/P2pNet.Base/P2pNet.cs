@@ -6,6 +6,20 @@ using UniLog;
 
 namespace P2pNet
 {
+    public static class P2pNetDateTime
+    {
+        // By default P2pNetDateTime.Now() returns the static DateTime.Now "current system time" property
+        // In a test environment, however, a call like:
+        //
+        // P2pNetDateTime.Now = () => new DateTime(2000,1,1);
+        //
+        // causes it to return the specified DateTime until otherwise directed
+        public static Func<DateTime> Now = () => DateTime.Now;
+
+        // This is what is typically used by P2pNet code:
+        public static long NowMs => Now().Ticks / TimeSpan.TicksPerMillisecond;
+    }
+
     // ReSharper disable InconsistentNaming
     // Problem here is that "p2p" is a word: "peer-to-peer" and the default .NET ReSharper rules dealing with digits result
     // in dumb stuff, like a field called "_p2PFooBar" with the 2nd P capped.
@@ -69,7 +83,7 @@ namespace P2pNet
 
         public  long NetworkLagMs {get; private set;} = 0; // round trip time / 2
         public long ClockOffsetMs {get; private set;} = 0; // localTime + offset = peerTime
-        public long MsSinceClockSync { get => lastClockSyncMs == 0 ? -1 : (CurrentlySyncing() ? syncTimeoutMs :   P2pNetBase.NowMs - lastClockSyncMs); } // -1 if never synced
+        public long MsSinceClockSync { get => lastClockSyncMs == 0 ? -1 : (CurrentlySyncing() ? syncTimeoutMs :   P2pNetDateTime.NowMs - lastClockSyncMs); } // -1 if never synced
 
         public P2pNetPeer(string _p2pId, int _pingMs, int _dropMs, int _syncMs)
         {
@@ -80,13 +94,13 @@ namespace P2pNet
         }
 
         // Clock sync
-        public void ReportSyncProgress() { lastClockSyncMs = -P2pNetBase.NowMs;} // negative means in progress
+        public void ReportSyncProgress() { lastClockSyncMs = -P2pNetDateTime.NowMs;} // negative means in progress
         public bool CurrentlySyncing() => lastClockSyncMs < 0;
         public bool ClockNeedsSync()
         {
             // either not set or too long ago and not currently in progress
             return lastClockSyncMs == 0
-                || (lastClockSyncMs > 0 && P2pNetBase.NowMs-lastClockSyncMs > syncTimeoutMs);
+                || (lastClockSyncMs > 0 && P2pNetDateTime.NowMs-lastClockSyncMs > syncTimeoutMs);
         }
 
         public void UpdateClockSync(long t0, long t1, long t2, long t3)
@@ -97,7 +111,7 @@ namespace P2pNet
             // Set if unset, else avg w/prev value
             ClockOffsetMs = (ClockOffsetMs == 0) ? theta : (theta + ClockOffsetMs) / 2;
             NetworkLagMs = (NetworkLagMs == 0) ? lag : (lag + NetworkLagMs) / 2;
-            lastClockSyncMs = P2pNetBase.NowMs;
+            lastClockSyncMs = P2pNetDateTime.NowMs;
         }
 
         public bool HaveTriedToContact() => firstHelloSentTs > 0;
@@ -114,12 +128,12 @@ namespace P2pNet
                 return false;
             if (!HaveTriedToContact())
                 return true;
-            return (P2pNetBase.NowMs - lastSentToTs) > pingTimeoutMs;
+            return (P2pNetDateTime.NowMs - lastSentToTs) > pingTimeoutMs;
         }
 
         public bool HelloTimedOut()
         {
-            long elapsed = P2pNetBase.NowMs - lastHeardTs;
+            long elapsed = P2pNetDateTime.NowMs - lastHeardTs;
             //if ( elapsed > _pingTimeoutSecs * 3 / 2)
             //    logger.Info($"Peer is late: {p.p2pID}");
             // TODO: worth pinging?
@@ -129,15 +143,15 @@ namespace P2pNet
         public bool HasTimedOut()
         {
             // Not hearing from them?
-            long elapsed = P2pNetBase.NowMs - lastHeardTs;
+            long elapsed = P2pNetDateTime.NowMs - lastHeardTs;
             return (elapsed > dropTimeoutMs);
         }
 
-        public void UpdateLastHeardFrom() =>  lastHeardTs = P2pNetBase.NowMs;
+        public void UpdateLastHeardFrom() =>  lastHeardTs = P2pNetDateTime.NowMs;
 
-        public void UpdateLastSentTo() =>  lastSentToTs = P2pNetBase.NowMs;
+        public void UpdateLastSentTo() =>  lastSentToTs = P2pNetDateTime.NowMs;
 
-        public bool NeedsPing() => (P2pNetBase.NowMs - lastSentToTs) > pingTimeoutMs;
+        public bool NeedsPing() => (P2pNetDateTime.NowMs - lastSentToTs) > pingTimeoutMs;
 
         public bool ValidateMsgId(long msgId)
         {
@@ -211,7 +225,7 @@ namespace P2pNet
         protected Dictionary<string, long> lastMsgIdSent; // last Id sent to each channel/peer
         public UniLogger logger;
 
-        public static long NowMs => DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
+        //public static long NowMs => DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
 
         public P2pNetBase(IP2pNetClient _client, string _connectionStr, Dictionary<string, string> _config = null)
         {
@@ -373,7 +387,7 @@ namespace P2pNet
             // Send() is the API for client messages
             long msgId = _NextMsgId(dstChan);
             P2pNetMessage p2pMsg = new P2pNetMessage(dstChan, localId, msgId, msgType, payload);
-            p2pMsg.sentTime = NowMs; // should not happen in ctor
+            p2pMsg.sentTime = P2pNetDateTime.NowMs; // should not happen in ctor
             if (_Send(p2pMsg))
                 _UpdateSendStats(dstChan, msgId);
         }
@@ -415,7 +429,7 @@ namespace P2pNet
             // dispatch a received client message
             if ( peers.TryGetValue( msg.srcId, out P2pNetPeer peer))
             {
-                long remoteMsNow = NowMs + peer.ClockOffsetMs;
+                long remoteMsNow = P2pNetDateTime.NowMs + peer.ClockOffsetMs;
                 long msSinceSend = remoteMsNow - msg.sentTime;
 
                 if (msSinceSend < 0)

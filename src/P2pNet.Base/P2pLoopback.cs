@@ -8,7 +8,7 @@ namespace P2pNet
     // especially since messages to mainChannel and localId are already handled
     // in the base class
     public class P2pLoopback : P2pNetBase
-    {  
+    {
         List<string> listeningTo;
         List<P2pNetMessage> messageQueue;
 
@@ -25,11 +25,11 @@ namespace P2pNet
                 // No locking is needed for local loopback
                 List<P2pNetMessage> prevMessageQueue;
                 prevMessageQueue = messageQueue;
-                messageQueue = new List<P2pNetMessage>();                
+                messageQueue = new List<P2pNetMessage>();
 
                 foreach( P2pNetMessage msg in prevMessageQueue)
                 {
-                    _OnReceivedNetMessage(msg.dstChannel, msg);                   
+                    _OnReceivedNetMessage(msg.dstChannel, msg);
                 }
             }
         }
@@ -47,10 +47,10 @@ namespace P2pNet
         }
         protected override bool _Send(P2pNetMessage msg)
         {
-            if (listeningTo.Contains(msg.dstChannel)) 
+            if (listeningTo.Contains(msg.dstChannel))
             {
                 _AddReceiptTimestamp(msg);
-                messageQueue.Add(msg);                
+                messageQueue.Add(msg);
             }
             return true;
         }
@@ -70,7 +70,7 @@ namespace P2pNet
             return System.Guid.NewGuid().ToString();
         }
 
-        protected override void _AddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = NowMs;
+        protected override void _AddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = P2pNetDateTime.NowMs;
 
     }
 }
