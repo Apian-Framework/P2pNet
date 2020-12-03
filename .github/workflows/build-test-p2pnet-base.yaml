@@ -8,8 +8,12 @@ on:
   push:
     branches: [ master ]
     paths:
-    - 'src/${{env.SUBPROJECT}}/**'
-    - 'tests/${{env.SUBPROJECT}}.Tests/**'
+    - 'src/P2pNet.Base/**'
+    - 'tests/P2pNet.Base.Tests/**'
+
+# Would really like to do this:
+#    - 'src/${{env.SUBPROJECT}}/**'
+#    - 'tests/${{env.SUBPROJECT}}.Tests/**'
 
 jobs:
   build:
