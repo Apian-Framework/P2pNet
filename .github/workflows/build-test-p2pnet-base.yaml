@@ -41,7 +41,7 @@ jobs:
       run: |
         echo Pwd: "$(pwd)"
         echo ls: "$(ls)"
-        echo ls main: "$(ls main)"
+        echo rtee: "$(tree)"
 
 
     - name: Build
