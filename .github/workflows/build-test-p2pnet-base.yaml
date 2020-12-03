@@ -2,7 +2,7 @@
 name: Build/Test P2pNet.Base
 
 env:
-  SubProject: 'P2pNet.Base'
+  SUBPROJECT: 'P2pNet.Base'
 
 on:
   push:
@@ -38,7 +38,7 @@ jobs:
       working-directory: main
 
     - name: Build
-      run: dotnet build ./src/${SubProject} --configuration Release --no-restore
+      run: dotnet build ./src/{{ env.SUBPROJECT }} --configuration Release --no-restore
       working-directory: main
 
     - name: Test
