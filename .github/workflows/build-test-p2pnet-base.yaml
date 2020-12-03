@@ -37,13 +37,6 @@ jobs:
       run: dotnet restore
       working-directory: main
 
-    - name: Where am I?
-      run: |
-        echo Pwd: "$(pwd)"
-        echo ls: "$(ls)"
-        echo Way down: "$(ls ./main/tests/P2pNet.Base.Tests/coverage/reports/)"
-
-
     - name: Build
       run: dotnet build ./src/$SUBPROJECT --configuration Release --no-restore
       working-directory: main
@@ -55,6 +48,12 @@ jobs:
         -p:CollectCoverage=true -p:CoverletOutput="./coverage/"
         -p:CoverletOutputFormat=cobertura -p:Include="[$SUBPROJECT]*"
       working-directory: main
+
+    - name: Where am I?
+      run: |
+        echo Pwd: "$(pwd)"
+        echo ls: "$(ls)"
+        echo Way down: "$(ls ./main/tests/P2pNet.Base.Tests/coverage/reports/)"
 
     - name: Upload Coverage Badge
       uses: actions/upload-artifact@v2
