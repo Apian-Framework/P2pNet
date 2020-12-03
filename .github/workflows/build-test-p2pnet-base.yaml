@@ -48,3 +48,10 @@ jobs:
         -p:CollectCoverage=true -p:CoverletOutput="./coverage/"
         -p:CoverletOutputFormat=cobertura -p:Include="[$SUBPROJECT]*"
       working-directory: main
+
+    - name: Upload Coverage Badge
+      uses: actions/upload-artifact@v2
+      with:
+        name: $SUBPROJECT_badge.svg
+        path: ./coverage/report/badge_linecoverage.svg
+      working-directory: main
