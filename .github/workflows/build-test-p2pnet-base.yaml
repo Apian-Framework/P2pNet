@@ -39,8 +39,10 @@ jobs:
 
     - name: Where am I?
       run: |
-        echo "$(pwd)"
-        echo "$(ls)"
+        echo Pwd: "$(pwd)"
+        echo ls: "$(ls)"
+        echo ls main: "$(ls main)"
+
 
     - name: Build
       run: dotnet build ./src/$SUBPROJECT --configuration Release --no-restore
