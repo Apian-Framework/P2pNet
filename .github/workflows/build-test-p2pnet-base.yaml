@@ -1,14 +1,15 @@
 
 name: Build/Test P2pNet.Base
 
-SubProject: 'P2pNet.Base'
+env:
+  SubProject: 'P2pNet.Base'
 
 on:
   push:
     branches: [ master ]
-    paths:
-    - 'src/${{ SubProject }}/**'
-    - 'tests/${{ SubProject }}.Tests/**'
+#    paths:
+#    - 'src/${{ SubProject }}/**'
+#    - 'tests/${{ SubProject }}.Tests/**'
 
 jobs:
   build:
