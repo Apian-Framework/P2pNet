@@ -38,7 +38,7 @@ jobs:
       working-directory: main
 
     - name: Build
-      run: dotnet build src/{$SUBPROJECT} --configuration Release --no-restore
+      run: dotnet build ./src/{$SUBPROJECT} --configuration Release --no-restore
       working-directory: main
 
     - name: Test
