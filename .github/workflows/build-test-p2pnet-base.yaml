@@ -38,10 +38,11 @@ jobs:
       working-directory: main
 
     - name: Build
+      run: echo Building in: $SUBPROJECT_PATH
       run: dotnet build $SUBPROJECT_PATH --configuration Release --no-restore
       working-directory: main
       env:
-        SUBPROJECT_PATH: './src/P2pNet.Base'
+        SUBPROJECT_PATH: './src/{{ env.SubProject }}'
 
     - name: Test
       run: dotnet test ./tests/{{ SubProject }}.Tests --no-restore --verbosity normal -p:CollectCoverage=true -p:CoverletOutput="./coverage/" -p:CoverletOutputFormat=cobertura
