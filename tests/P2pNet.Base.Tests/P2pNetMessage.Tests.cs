@@ -7,7 +7,7 @@ using Newtonsoft.Json;
 using P2pNet;
 using UniLog;
 
-namespace P2pNetTests
+namespace P2pNetBaseTests
 {
     [TestFixture]
     public class P2pNetMessageTests
