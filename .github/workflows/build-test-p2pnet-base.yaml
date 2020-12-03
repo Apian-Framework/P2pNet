@@ -58,6 +58,6 @@ jobs:
     - name: Upload Coverage Badge
       uses: actions/upload-artifact@v2
       with:
-        name: $SUBPROJECT_badge.svg
-        path: ./main/tests/$SUBPROJECT.Tests/coverage/reports/badge_linecoverage.svg
+        name: ${SUBPROJECT}_badge.svg
+        path: ./main/tests/P2pNet.Base.Tests/coverage/reports/badge_linecoverage.svg
 
