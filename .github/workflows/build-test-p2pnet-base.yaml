@@ -8,8 +8,8 @@ on:
   push:
     branches: [ master ]
     paths:
-    - 'src/${{ SUBPROJECT }}/**'
-    - 'tests/${{ SUBPROJECT }}.Tests/**'
+    - 'src/${{env.SUBPROJECT}}/**'
+    - 'tests/${{env.SUBPROJECT}}.Tests/**'
 
 jobs:
   build:
