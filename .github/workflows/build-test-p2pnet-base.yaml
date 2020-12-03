@@ -41,7 +41,7 @@ jobs:
       run: |
         echo Pwd: "$(pwd)"
         echo ls: "$(ls)"
-        echo rtee: "$(tree)"
+        echo Way down: "$(ls ./main/tests/P2pNet.Base.Tests/coverage/reports/)"
 
 
     - name: Build
