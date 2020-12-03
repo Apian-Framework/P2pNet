@@ -1,15 +1,15 @@
 
 name: Build/Test P2pNet.Base
 
-env:
-  SUBPROJECT: 'P2pNet.Base'
-
 on:
   push:
     branches: [ master ]
 #    paths:
 #    - 'src/${{ SubProject }}/**'
 #    - 'tests/${{ SubProject }}.Tests/**'
+
+env:
+  SUBPROJECT: P2pNet.Base
 
 jobs:
   build:
@@ -40,11 +40,10 @@ jobs:
     - name: Build
       run: |
         echo Building in: $SUBPROJECT_PATH
-        dotnet build $SUBPROJECT_PATH --configuration Release --no-restore
+        dotnet build src/{$SUBPROJECT} --configuration Release --no-restore
       working-directory: main
-      env:
-        SUBPROJECT_PATH: './src/{{ env.SubProject }}'
+'
 
     - name: Test
-      run: dotnet test ./tests/{{ SubProject }}.Tests --no-restore --verbosity normal -p:CollectCoverage=true -p:CoverletOutput="./coverage/" -p:CoverletOutputFormat=cobertura
+      run: dotnet test ./tests/${SUBPROJECT}.Tests --no-restore --verbosity normal -p:CollectCoverage=true -p:CoverletOutput="./coverage/" -p:CoverletOutputFormat=cobertura
       working-directory: main
