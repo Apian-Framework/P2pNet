@@ -12,6 +12,7 @@ on:
     - 'tests/P2pNet.Base.Tests/**'
 
 # Would really like to do this:
+#    paths:
 #    - 'src/${{env.SUBPROJECT}}/**'
 #    - 'tests/${{env.SUBPROJECT}}.Tests/**'
 
@@ -59,6 +60,7 @@ jobs:
     #     echo ls: "$(ls)"
     #     echo Way down: "$(ls ./main/tests/P2pNet.Base.Tests/coverage/reports/)"
 
+    # This works, but there's nothing useful to do with the badge, 'cause it's zipped
     # - name: Upload Coverage Badge
     #   uses: actions/upload-artifact@v2
     #   with:
