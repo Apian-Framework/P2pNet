@@ -53,5 +53,5 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: $SUBPROJECT_badge.svg
-        path: ./main/tests/$SUBPROJECT/Tests/coverage/reports/badge_linecoverage.svg
+        path: ./main/tests/$SUBPROJECT.Tests/coverage/reports/badge_linecoverage.svg
 
