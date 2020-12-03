@@ -42,7 +42,7 @@ jobs:
       working-directory: main
 
     - name: Test
-      run: |
+      run: >
         dotnet test ./tests/$SUBPROJECT.Tests
         --no-restore --verbosity normal
         -p:CollectCoverage=true -p:CoverletOutput="./coverage/"
