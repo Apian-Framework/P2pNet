@@ -22,7 +22,7 @@ namespace P2pNetBaseTests
                 payload = "payload";
             const long msgId = 1234567890;
 
-            P2pNetMessage msg = new P2pNetMessage(dstChan, srcId, msgId, msgType, payload);
+            P2pNetMessage msg =  new P2pNetMessage(dstChan, srcId, msgId, msgType, payload);
             Assert.That(msg, Is.Not.Null);
             Assert.That(msg.dstChannel, Is.EqualTo(dstChan));
             Assert.That(msg.srcId, Is.EqualTo(srcId));
