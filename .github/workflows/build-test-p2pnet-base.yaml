@@ -1,15 +1,15 @@
 
 name: Build/Test P2pNet.Base
 
+env:
+  SUBPROJECT: P2pNet.Base
+
 on:
   push:
     branches: [ master ]
-#    paths:
-#    - 'src/${{ SubProject }}/**'
-#    - 'tests/${{ SubProject }}.Tests/**'
-
-env:
-  SUBPROJECT: P2pNet.Base
+    paths:
+    - 'src/${{ SUBPROJECT }}/**'
+    - 'tests/${{ SUBPROJECT }}.Tests/**'
 
 jobs:
   build:
@@ -49,15 +49,15 @@ jobs:
         -p:CoverletOutputFormat=cobertura -p:Include="[$SUBPROJECT]*"
       working-directory: main
 
-    - name: Where am I?
-      run: |
-        echo Pwd: "$(pwd)"
-        echo ls: "$(ls)"
-        echo Way down: "$(ls ./main/tests/P2pNet.Base.Tests/coverage/reports/)"
+    # - name: Where am I?
+    #   run: |
+    #     echo Pwd: "$(pwd)"
+    #     echo ls: "$(ls)"
+    #     echo Way down: "$(ls ./main/tests/P2pNet.Base.Tests/coverage/reports/)"
 
-    - name: Upload Coverage Badge
-      uses: actions/upload-artifact@v2
-      with:
-        name: ${SUBPROJECT}_badge.svg
-        path: ./main/tests/P2pNet.Base.Tests/coverage/reports/badge_linecoverage.svg
+    # - name: Upload Coverage Badge
+    #   uses: actions/upload-artifact@v2
+    #   with:
+    #     name: ${{env.SUBPROJECT}}_badge.svg
+    #     path: ./main/tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg
 
