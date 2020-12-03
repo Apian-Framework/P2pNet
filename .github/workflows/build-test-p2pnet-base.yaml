@@ -41,7 +41,7 @@ jobs:
       run: dotnet build $SUBPROJECT_PATH --configuration Release --no-restore
       working-directory: main
       env:
-        SUBPROJECT_PATH: ./src/{{ env.SUBPROJECT }}
+        SUBPROJECT_PATH: './src/P2pNet.Base'
 
     - name: Test
       run: dotnet test ./tests/{{ SubProject }}.Tests --no-restore --verbosity normal -p:CollectCoverage=true -p:CoverletOutput="./coverage/" -p:CoverletOutputFormat=cobertura
