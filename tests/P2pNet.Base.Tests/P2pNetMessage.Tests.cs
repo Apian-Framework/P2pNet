@@ -12,6 +12,7 @@ namespace P2pNetTests
     [TestFixture]
     public class P2pNetMessageTests
     {
+        // Only has a constructor test
         [Test]
         public void ConstructorWorks()
         {

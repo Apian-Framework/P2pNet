@@ -28,13 +28,53 @@ namespace P2pNetTests
         }
 
         [Test]
-        [Ignore("Stop using global P2pNetBase.NowMs")]
-        // Maybe find a good way to mock it? I dunno. Actually, it's jsut a static wrapper for a calculation using
-        // the global DateTime.
-        public void VariousTimingTests()
+        // public bool ValidateMsgId(long msgId)
+        // ID must be larger that previous.
+        // Side effect: if valid, previous is set to msgId
+        public void ValidatMsgIdWorks()
         {
+            const string p2pId = "p2pId";
+            const int pingMs =  5000,
+                dropMs = 10000,
+                syncMs = 14000;
+
+            P2pNetPeer peer = new P2pNetPeer(p2pId, pingMs, dropMs, syncMs);
+            Assert.That(peer, Is.Not.Null);
+
+            bool valid = peer.ValidateMsgId(1);
+            Assert.That(valid, Is.True); // was 0 now 1
+
+            valid = peer.ValidateMsgId(1);
+            Assert.That(valid, Is.False); // was 1 now 1
+
+            valid = peer.ValidateMsgId(5);
+            Assert.That(valid, Is.True); // was 1 now 5
+
+            valid = peer.ValidateMsgId(3);
+            Assert.That(valid, Is.False); // was 5 now 5
 
         }
+
+        // Still need to deal with:
+        // public long MsSinceClockSync
+        // public bool CurrentlySyncing()
+        // public bool ClockNeedsSync()
+        // public bool HaveTriedToContact()
+        // public bool HaveHeardFrom()
+        // public bool WeShouldSendHello()
+        // public bool HelloTimedOut()
+        // public bool HasTimedOut()
+        // public bool NeedsPing()
+
+        // using:
+        // public void UpdateClockSync(long t0, long t1, long t2, long t3)
+        // public void ReportSyncProgress()
+        // public void UpdateLastHeardFrom()
+        // public void UpdateLastSentTo()
+
+
+
+
     }
 
 }
