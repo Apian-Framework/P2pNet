@@ -38,9 +38,7 @@ jobs:
       working-directory: main
 
     - name: Build
-      run: |
-        echo Building in: $SUBPROJECT_PATH
-        dotnet build src/{$SUBPROJECT} --configuration Release --no-restore
+      run: dotnet build src/{$SUBPROJECT} --configuration Release --no-restore
       working-directory: main
 '
 
