@@ -44,8 +44,9 @@ jobs:
 
     - name: Default badges
       run: |
-        cp -v ./main/.github/badges/badge_branchcoverage_none.svg  ./main/.github/badges/$SUBPROJECT_linecoverage.svg
-        cp -v ./main/.github/badges/badge_branchcoverage_none.svg ./main/.github/badges/$SUBPROJECT_branchcoverage.svg
+        cp -v ./.github/badges/badge_branchcoverage_none.svg  ./.github/badges/${SUBPROJECT}_linecoverage.svg
+        cp -v ./.github/badges/badge_branchcoverage_none.svg ./.github/badges/${{SUBPROJECT}}_branchcoverage.svg
+      working-directory: main
 
     - name: Build
       run: dotnet build ./src/$SUBPROJECT --configuration Release --no-restore
@@ -61,14 +62,15 @@ jobs:
 
     - name: Commit Badges
       run: |
-        cp -v ./main/tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg ./main/.github/badges/$SUBPROJECT_linecoverage.svg
-        cp -v ./main/tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_branchcoverage.svg ./main/.github/badges/$SUBPROJECT_branchcoverage.svg
+        cp -v ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg ./.github/badges/$SUBPROJECT_linecoverage.svg
+        cp -v ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_branchcoverage.svg ./.github/badges/$SUBPROJECT_branchcoverage.svg
         git config --global user.name "ApianFrameworkPackageAccess"
         git config --global user.email "apian-framework-machine@bigfattail.com"
-        git add ./main/.github/badges/$SUBPROJECT_linecoverage.svg
-        git add ./main/.github/badges/$SUBPROJECT_branchcoverage.svg
+        git add ./.github/badges/$SUBPROJECT_linecoverage.svg
+        git add ./.github/badges/$SUBPROJECT_branchcoverage.svg
         git commit -m "$SUBPROJECT coverage badges"
         git push
+      working-directory: main
 
     # - name: Where am I?
     #   run: |
