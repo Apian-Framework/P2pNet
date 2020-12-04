@@ -44,20 +44,20 @@ jobs:
 
     - name: Default badges
       run: |
-        cp -v ./.github/badges/badge_branchcoverage_none.svg  ./.github/badges/${SUBPROJECT}_linecoverage.svg
-        cp -v ./.github/badges/badge_branchcoverage_none.svg ./.github/badges/${SUBPROJECT}_branchcoverage.svg
+        cp -v ./.github/badges/badge_branchcoverage_none.svg  ./.github/badges${{env.SUBPROJECT}}_linecoverage.svg
+        cp -v ./.github/badges/badge_branchcoverage_none.svg ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
       working-directory: main
 
     - name: Build
-      run: dotnet build ./src/$SUBPROJECT --configuration Release --no-restore
+      run: dotnet build ./src/${{env.SUBPROJECT}} --configuration Release --no-restore
       working-directory: main
 
     - name: Test
       run: >
-        dotnet test ./tests/$SUBPROJECT.Tests
+        dotnet test ./tests/${{env.SUBPROJECT}}.Tests
         --no-restore --verbosity normal
         -p:CollectCoverage=true -p:CoverletOutput="./coverage/"
-        -p:CoverletOutputFormat=cobertura -p:Include="[$SUBPROJECT]*"
+        -p:CoverletOutputFormat=cobertura -p:Include="[${{env.SUBPROJECT}}]*"
       working-directory: main
 
     - name: Commit Badges
@@ -66,9 +66,9 @@ jobs:
         cp -v ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_branchcoverage.svg ./.github/badges/$SUBPROJECT_branchcoverage.svg
         git config --global user.name "ApianFrameworkPackageAccess"
         git config --global user.email "apian-framework-machine@bigfattail.com"
-        git add ./.github/badges/$SUBPROJECT_linecoverage.svg
-        git add ./.github/badges/$SUBPROJECT_branchcoverage.svg
-        git commit -m "$SUBPROJECT coverage badges"
+        git add ./.github/badges/${{env.SUBPROJECT}}_linecoverage.svg
+        git add ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
+        git commit -m "${{env.SUBPROJECT}} coverage badges"
         git push
       working-directory: main
 
