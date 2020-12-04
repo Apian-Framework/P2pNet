@@ -23,7 +23,7 @@
 
   <Target Name="GenerateHtmlCoverageReport" AfterTargets="GenerateCoverageResultAfterTest">
     <Message Text="Generating coverage report from @(CoverletReport)" />
-    <ReportGenerator ReportFiles="./coverage/coverage.cobertura.xml"  TargetDirectory="./coverage/reports" ReportTypes="html;badges" />
+    <ReportGenerator ReportFiles="./coverage/coverage.cobertura.xml" TargetDirectory="./coverage/reports" ReportTypes="html;badges" />
   </Target>
 
 </Project>
