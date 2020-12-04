@@ -45,7 +45,7 @@ jobs:
     - name: Default badges
       run: |
         cp -v ./.github/badges/badge_branchcoverage_none.svg  ./.github/badges/${SUBPROJECT}_linecoverage.svg
-        cp -v ./.github/badges/badge_branchcoverage_none.svg ./.github/badges/${{SUBPROJECT}}_branchcoverage.svg
+        cp -v ./.github/badges/badge_branchcoverage_none.svg ./.github/badges/${SUBPROJECT}_branchcoverage.svg
       working-directory: main
 
     - name: Build
