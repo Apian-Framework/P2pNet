@@ -18,16 +18,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\P2pNet.Base\P2pNet.Base.csproj" />
+    <ProjectReference Include="..\..\src\P2pNet.Redis\P2pNet.Redis.csproj" />
   </ItemGroup>
-
-  <PropertyGroup>
-    <!-- These are all for 'dotnet test' in order to match the ReportGenerator stuff below -->
-    <CollectCoverage>true</CollectCoverage>
-    <CoverletOutput>./coverage/</CoverletOutput>
-    <CoverletOutputFormat>cobertura</CoverletOutputFormat>
-    <Include>[P2pNet.Base]*</Include>
-  </PropertyGroup>
 
   <Target Name="GenerateHtmlCoverageReport" AfterTargets="GenerateCoverageResultAfterTest">
     <Message Text="Generating coverage report from @(CoverletReport)" />
