@@ -9,9 +9,11 @@ using UniLog;
 
 namespace P2pNetTests
 {
-    [TestFixture]
 
-            public class MockP2pNetClient : IP2pNetClient
+    [TestFixture]
+    public class P2pLoopbackTests
+    {
+        public class MockP2pNetClient : IP2pNetClient
         {
             public void OnClientMsg(string from, string to, long msSinceSent, string payload)
             {
@@ -38,18 +40,15 @@ namespace P2pNetTests
                 throw new NotImplementedException();
             }
         }
-    public class P2pNetRedisTests
-    {
+
         [Test]
-        [Ignore("Need to figure out Redis mocking")]
-        public void P2pNetRedis_Ctor()
+        public void P2pLoopback_Ctor()
         {
-            // public P2pRedis(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null)
+            // public P2pActiveMq(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null)
             MockP2pNetClient cli = new MockP2pNetClient();
 
-            P2pRedis p2p = new P2pRedis(cli, "hello?");
+            P2pLoopback p2p = new P2pLoopback(cli, "hello?");
             Assert.That(p2p, Is.Not.Null);
-
         }
     }
 
