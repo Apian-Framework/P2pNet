@@ -21,7 +21,7 @@
     <ProjectReference Include="..\..\src\P2pNet.ActiveMq\P2pNet.ActiveMq.csproj" />
   </ItemGroup>
 
-  <Target Name="GenerateHtmlCoverageReport" AfterTargets="GenerateCoverageResultAfterTest">
+  <Target Name="GenerateHtmlCoverageReport" AfterTargets="GenerateCoverageResultAfterTest" Condition="Exists('./coverage/coverage.cobertura.xml')">
     <Message Text="Generating coverage report from @(CoverletReport)" />
     <ReportGenerator ReportFiles="./coverage/coverage.cobertura.xml" TargetDirectory="./coverage/reports" ReportTypes="html;badges" />
   </Target>
