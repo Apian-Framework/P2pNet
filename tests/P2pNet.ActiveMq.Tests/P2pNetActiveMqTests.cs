@@ -42,7 +42,7 @@ namespace P2pNetTests
         }
 
         [Test]
-        [Ignore("Need to figure out ActiveMq mocking.")]
+        [Ignore("Need to figure out ActiveMq mocking")]
         public void P2pActiveMq_Ctor()
         {
             // public P2pActiveMq(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null)
