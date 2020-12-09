@@ -44,7 +44,7 @@ namespace P2pNetTests
         [Test]
         public void P2pLoopback_Ctor()
         {
-            // public P2pActiveMq(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null)
+            //  public P2pActiveMq(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null)
             MockP2pNetClient cli = new MockP2pNetClient();
 
             P2pLoopback p2p = new P2pLoopback(cli, "hello?");
