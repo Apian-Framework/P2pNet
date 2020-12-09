@@ -62,15 +62,15 @@ jobs:
         then
           cp -v ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg ./.github/badges/${{env.SUBPROJECT}}_linecoverage.svg
           cp -v ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_branchcoverage.svg ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
-          git config --global user.name "ApianFrameworkPackageAccess"
-          git config --global user.email "apian-framework-machine@bigfattail.com"
-          git add ./.github/badges/${{env.SUBPROJECT}}_linecoverage.svg
-          git add ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
-          git commit --allow-empty -m "${{env.SUBPROJECT}} coverage badges"
-          git push
         else
-          echo "No badges created"
+          echo "No coverage badges created"
         fi
+        git config --global user.name "ApianFrameworkPackageAccess"
+        git config --global user.email "apian-framework-machine@bigfattail.com"
+        git add ./.github/badges/${{env.SUBPROJECT}}_linecoverage.svg
+        git add ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
+        git commit --allow-empty -m "${{env.SUBPROJECT}} coverage badges"
+        git push
       working-directory: main
 
     # - name: Where am I?
