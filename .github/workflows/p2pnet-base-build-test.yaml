@@ -71,6 +71,7 @@ jobs:
         git config --global user.email "apian-framework-machine@bigfattail.com"
         git add ./.github/badges/${{env.SUBPROJECT}}_linecoverage.svg
         git add ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
+        git pull --ff-only
         git commit --allow-empty -m "${{env.SUBPROJECT}} coverage badges"
         git push
 
