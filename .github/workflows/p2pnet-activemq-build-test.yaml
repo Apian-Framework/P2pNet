@@ -1,0 +1,83 @@
+
+name: P2pNet.ActiveMq Build/Test
+
+env:
+  SUBPROJECT: P2pNet.ActiveMq
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+    - 'src/P2pNet.ActiveMq/**'
+    - 'tests/P2pNet.ActiveMq.Tests/**'
+
+# Would really like to do this:
+#    paths:
+#    - 'src/${{env.SUBPROJECT}}/**'
+#    - 'tests/${{env.SUBPROJECT}}.Tests/**'
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 3.1.301
+
+    - name: Checkout Target
+      uses: actions/checkout@v2
+      with:
+        path: main
+
+    - name: Checkout Apian dependencies (UniLog)
+      uses: actions/checkout@v2
+      with:
+        repository: Apian-Framework/UniLog
+        path: UniLog
+
+    - name: Restore dependencies
+      run: dotnet restore
+      working-directory: main
+
+    - name: Default badges
+      run: |
+        cp -v ./.github/badges/badge_branchcoverage_none.svg  ./.github/badges${{env.SUBPROJECT}}_linecoverage.svg
+        cp -v ./.github/badges/badge_branchcoverage_none.svg ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
+      working-directory: main
+
+    - name: Build
+      run: dotnet build ./src/${{env.SUBPROJECT}} --configuration Release --no-restore
+      working-directory: main
+
+    - name: Test # See the test project .csproj file for property definitions
+      run: dotnet test ./tests/${{env.SUBPROJECT}}.Tests --no-restore --verbosity normal
+      working-directory: main
+
+    - name: Commit Badges
+      run: |
+        cp -v ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg ./.github/badges/${{env.SUBPROJECT}}_linecoverage.svg
+        cp -v ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_branchcoverage.svg ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
+        git config --global user.name "ApianFrameworkPackageAccess"
+        git config --global user.email "apian-framework-machine@bigfattail.com"
+        git add ./.github/badges/${{env.SUBPROJECT}}_linecoverage.svg
+        git add ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
+        git commit -m "${{env.SUBPROJECT}} coverage badges"
+        git push
+      working-directory: main
+
+    # - name: Where am I?
+    #   run: |
+    #     echo Pwd: "$(pwd)"
+    #     echo ls: "$(ls)"
+    #     echo Way down: "$(ls ./main/tests/P2pNet.Base.Tests/coverage/reports/)"
+
+    # This works, but there's nothing useful to do with the badge, 'cause it's zipped
+    # - name: Upload Coverage Badge
+    #   uses: actions/upload-artifact@v2
+    #   with:
+    #     name: ${{env.SUBPROJECT}}_badge.svg
+    #     path: ./main/tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg
+
