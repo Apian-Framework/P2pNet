@@ -58,7 +58,8 @@ jobs:
 
     - name: Commit Badges
       run: |
-        if [ -f ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg ] then;
+        if [ -f ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg ]
+        then
           cp -v ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg ./.github/badges/${{env.SUBPROJECT}}_linecoverage.svg
           cp -v ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_branchcoverage.svg ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
           git config --global user.name "ApianFrameworkPackageAccess"
