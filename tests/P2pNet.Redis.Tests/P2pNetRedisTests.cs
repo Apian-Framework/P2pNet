@@ -41,7 +41,7 @@ namespace P2pNetTests
     public class P2pNetRedisTests
     {
         [Test]
-        [Ignore("Need to figure out Redis mocking.")]
+        [Ignore("Need to figure out Redis mocking")]
         public void P2pNetRedis_Ctor()
         {
             // public P2pRedis(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null)
