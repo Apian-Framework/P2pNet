@@ -42,11 +42,11 @@ jobs:
       run: dotnet restore
       working-directory: main
 
-    - name: Default badges
-      run: |
-        cp -v ./.github/badges/badge_branchcoverage_none.svg  ./.github/badges${{env.SUBPROJECT}}_linecoverage.svg
-        cp -v ./.github/badges/badge_branchcoverage_none.svg ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
-      working-directory: main
+    # - name: Default badges
+    #   run: |
+    #     cp -v ./.github/badges/badge_linecoverage_none.svg ./.github/badges${{env.SUBPROJECT}}_linecoverage.svg
+    #     cp -v ./.github/badges/badge_branchcoverage_none.svg ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
+    #   working-directory: main
 
     - name: Build
       run: dotnet build ./src/${{env.SUBPROJECT}} --configuration Release --no-restore
@@ -64,6 +64,8 @@ jobs:
           cp -v ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_branchcoverage.svg ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
         else
           echo "No coverage badges created"
+          cp -v ./.github/badges/badge_linecoverage_none.svg ./.github/badges/${{env.SUBPROJECT}}_linecoverage.svg
+          cp -v ./.github/badges/badge_branchcoverage_none.svg ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
         fi
         git config --global user.name "ApianFrameworkPackageAccess"
         git config --global user.email "apian-framework-machine@bigfattail.com"
