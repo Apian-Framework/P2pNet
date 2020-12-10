@@ -10,12 +10,13 @@ namespace P2pNet
     {
         private readonly object queueLock = new object();
         List<P2pNetMessage> messageQueue;
-        public ConnectionMultiplexer RedisCon {get; private set; } = null;
+        public IConnectionMultiplexer RedisCon {get; private set; } = null;
 
-        public P2pRedis(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null) : base(_client, _connectionString,  _config)
+        public P2pRedis(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null, IConnectionMultiplexer testConMux=null) : base(_client, _connectionString,  _config)
         {
             try {
-              RedisCon = ConnectionMultiplexer.Connect(_connectionString);
+                // TODO: &&&&& DO NOT CONNECT in ctor (remember: ctors should JUST construct. Failure should only be memory-related)
+                RedisCon = testConMux ?? ConnectionMultiplexer.Connect(_connectionString); // Use the passed-in test mux instance if supplied
             } catch (StackExchange.Redis.RedisConnectionException ex) {
                 throw( new Exception($"{GuessRedisProblem(ex.Message)}"));
             } catch (System.ArgumentException ex) {
