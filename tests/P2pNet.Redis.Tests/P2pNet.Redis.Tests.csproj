@@ -22,6 +22,14 @@
     <ProjectReference Include="..\..\src\P2pNet.Redis\P2pNet.Redis.csproj" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <!-- These are all for 'dotnet test' in order to match the ReportGenerator stuff below -->
+    <CollectCoverage>true</CollectCoverage>
+    <CoverletOutput>./coverage/</CoverletOutput>
+    <CoverletOutputFormat>cobertura</CoverletOutputFormat>
+    <Include>[P2pNet.Redis]*</Include>
+  </PropertyGroup>
+
   <Target Name="GenerateHtmlCoverageReport" AfterTargets="GenerateCoverageResultAfterTest" Condition="Exists('./coverage/coverage.cobertura.xml')">
     <Message Text="Generating coverage report from @(CoverletReport)" />
     <ReportGenerator ReportFiles="./coverage/coverage.cobertura.xml" TargetDirectory="./coverage/reports" ReportTypes="html;badges" />
