@@ -77,6 +77,7 @@ jobs:
         cd ../badges
         git config --global user.name "ApianFrameworkPackageAccess"
         git config --global user.email "apian-framework-machine@bigfattail.com"
+        git config -l | grep 'http\..*\.extraheader' | cut -d= -f1 | xargs -L1 git config --unset-all
         git add ${{env.SUBPROJECT}}_linecoverage.svg
         git add ${{env.SUBPROJECT}}_branchcoverage.svg
         git pull --ff-only
