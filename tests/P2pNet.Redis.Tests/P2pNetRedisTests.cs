@@ -62,7 +62,7 @@ namespace P2pNetTests
 
             if (ConnectFailures.ContainsKey(connString))
             {
-                // Redis exceptions have ctors that take a "failureTYpe)
+                // Redis exceptions have ctors that take a "failureType)
                 ConnectionStringFailure f = ConnectFailures[connString];
                 Type exType = f.redisExceptionType;
                 if (f.redisFailureType == ConnectionFailureType.None)

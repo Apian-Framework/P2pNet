@@ -47,7 +47,7 @@ namespace P2pNetTests
             // public P2pActiveMq(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null)
             MockP2pNetClient cli = new MockP2pNetClient();
 
-            P2pLoopback p2p = new P2pLoopback(cli, "hello?");
+            P2pLoopback p2p = new P2pLoopback(cli, "hello? ");
             Assert.That(p2p, Is.Not.Null);
         }
     }

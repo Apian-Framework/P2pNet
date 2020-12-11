@@ -49,7 +49,7 @@ namespace P2pNetTests
             MockP2pNetClient cli = new MockP2pNetClient();
 
             P2pActiveMq p2p = new P2pActiveMq(cli, "hello?");
-            Assert.That(p2p, Is.Not.Null);
+            Assert.That(p2p, Is.Not.Null );
         }
     }
 
