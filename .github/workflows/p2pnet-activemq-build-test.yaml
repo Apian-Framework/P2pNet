@@ -82,7 +82,6 @@ jobs:
         git add ${{env.SUBPROJECT}}_branchcoverage.svg
         git pull --ff-only
         git commit --allow-empty -m "${{env.SUBPROJECT}} coverage badges"
-        git push
       working-directory: main
 
     - name: Push Badges
