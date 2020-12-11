@@ -56,25 +56,42 @@ jobs:
       run: dotnet test ./tests/${{env.SUBPROJECT}}.Tests --no-restore --verbosity normal
       working-directory: main
 
+    - name: Checkout CI badges
+      uses: actions/checkout@v2
+      with:
+        repository: Apian-Framework/Apian-CI-Badges
+        ref: ${{env.SUBPROJECT}}
+        path: badges
+
     - name: Commit Badges
       run: |
         if [ -f ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg ]
         then
-          cp -v ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg ./.github/badges/${{env.SUBPROJECT}}_linecoverage.svg
-          cp -v ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_branchcoverage.svg ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
+          cp -v ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg ../badges/${{env.SUBPROJECT}}_linecoverage.svg
+          cp -v ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_branchcoverage.svg ../badges/${{env.SUBPROJECT}}_branchcoverage.svg
         else
           echo "No coverage badges created"
-          cp -v ./.github/badges/badge_linecoverage_none.svg ./.github/badges/${{env.SUBPROJECT}}_linecoverage.svg
-          cp -v ./.github/badges/badge_branchcoverage_none.svg ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
+          cp -v ../badges/badge_linecoverage_none.svg ../badges/${{env.SUBPROJECT}}_linecoverage.svg
+          cp -v ../badges/badge_branchcoverage_none.svg ../badges/${{env.SUBPROJECT}}_branchcoverage.svg
         fi
+        cd ../badges
         git config --global user.name "ApianFrameworkPackageAccess"
         git config --global user.email "apian-framework-machine@bigfattail.com"
-        git add ./.github/badges/${{env.SUBPROJECT}}_linecoverage.svg
-        git add ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
+        git config -l | grep 'http\..*\.extraheader' | cut -d= -f1 | xargs -L1 git config --unset-all
+        git add ${{env.SUBPROJECT}}_linecoverage.svg
+        git add ${{env.SUBPROJECT}}_branchcoverage.svg
         git pull --ff-only
         git commit --allow-empty -m "${{env.SUBPROJECT}} coverage badges"
-        git push
       working-directory: main
+
+    - name: Push Badges
+      uses: ad-m/github-push-action@master
+      with:
+        directory: badges
+        repository: Apian-Framework/Apian-CI-Badges
+        branch: ${{env.SUBPROJECT}}
+        github_token: ${{ secrets.BOT_ACCESS_TOKEN }}
+
 
     # - name: Where am I?
     #   run: |
