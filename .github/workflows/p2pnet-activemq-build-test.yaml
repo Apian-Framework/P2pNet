@@ -87,8 +87,8 @@ jobs:
 
     - name: Push Badges
       uses: ad-m/github-push-action@master
-      working-directory: badges
       with:
+        directory: badges
         repository: Apian-Framework/Apian-CI-Badges
         branch: ${{env.SUBPROJECT}}
         github_token: ${{ secrets.BOT_ACCESS_TOKEN }}
