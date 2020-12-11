@@ -12,14 +12,17 @@ namespace P2pNet
         List<P2pNetMessage> messageQueue;
         public IConnectionMultiplexer RedisCon {get; private set; } = null;
 
-        public P2pRedis(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null, IConnectionMultiplexer testConMux=null) : base(_client, _connectionString,  _config)
+        public P2pRedis(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null, Func<string, IConnectionMultiplexer> muxConnectFactory=null) : base(_client, _connectionString,  _config)
         {
+            // valid connection string is typically: "<host>,password=<password>"
             try {
                 // TODO: &&&&& DO NOT CONNECT in ctor (remember: ctors should JUST construct. Failure should only be memory-related)
-                RedisCon = testConMux ?? ConnectionMultiplexer.Connect(_connectionString); // Use the passed-in test mux instance if supplied
+                RedisCon =  muxConnectFactory != null ? muxConnectFactory(_connectionString) : ConnectionMultiplexer.Connect(_connectionString); // Use the passed-in test mux instance if supplied
             } catch (StackExchange.Redis.RedisConnectionException ex) {
+                logger.Debug(string.Format("P2pRedis Ctor: StackExchange.Redis.RedisConnectionException:{0}", ex.Message));
                 throw( new Exception($"{GuessRedisProblem(ex.Message)}"));
             } catch (System.ArgumentException ex) {
+                logger.Debug(string.Format("P2pRedis Ctor: System.ArgumentException:{0}", ex.Message));
                 throw( new Exception($"Bad connection string: {ex.Message}"));
             }
             messageQueue = new List<P2pNetMessage>();
