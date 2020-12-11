@@ -67,12 +67,12 @@ jobs:
       run: |
         if [ -f ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg ]
         then
-          cp -v ../badges/badge_linecoverage.svg ../badges/${{env.SUBPROJECT}}_linecoverage.svg
-          cp -v ../badges/badge_branchcoverage.svg ../badges/${{env.SUBPROJECT}}_branchcoverage.svg
+          cp -v ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg ../badges/${{env.SUBPROJECT}}_linecoverage.svg
+          cp -v ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_branchcoverage.svg ../badges/${{env.SUBPROJECT}}_branchcoverage.svg
         else
           echo "No coverage badges created"
-          cp -v ./.github/badges/badge_linecoverage_none.svg ../badges/${{env.SUBPROJECT}}_linecoverage.svg
-          cp -v ./.github/badges/badge_branchcoverage_none.svg ../badges/${{env.SUBPROJECT}}_branchcoverage.svg
+          cp -v ../badges/badge_linecoverage_none.svg ../badges/${{env.SUBPROJECT}}_linecoverage.svg
+          cp -v ../badges/badge_branchcoverage_none.svg ../badges/${{env.SUBPROJECT}}_branchcoverage.svg
         fi
         cd ../badges
         git config --global user.name "ApianFrameworkPackageAccess"
