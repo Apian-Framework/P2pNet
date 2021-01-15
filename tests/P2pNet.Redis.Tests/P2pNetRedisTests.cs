@@ -94,6 +94,26 @@ namespace P2pNetTests
             Exception ex = Assert.Throws(typeof(Exception), () => new P2pRedis(mockCli.Object,connString, null, MockMuxConnectFactory));
             Assert.That(ex.Message, Is.EqualTo(csf.p2pNetExceptionMsg));
         }
+
+        [Test]
+        public void P2pNetRedis_get_RedisCon_Works()
+        {
+            mockCli = new Mock<IP2pNetClient>(MockBehavior.Strict);
+            P2pRedis p2p =  new P2pRedis(mockCli.Object,kGoodConnectionStr, null, MockMuxConnectFactory);
+            Assert.That(p2p, Is.Not.Null);
+            Assert.That(p2p.RedisCon, Is.Not.Null);
+            object result = p2p.RedisCon;
+            Assert.That(result, Is.InstanceOf(typeof(IConnectionMultiplexer)));
+        }
+
+        // [Test]
+        // public void P2pNetRedis_Ctor_GoodConnectionString()
+        // {
+        //     mockCli = new Mock<IP2pNetClient>(MockBehavior.Strict);
+        //     // public P2pRedis(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null, muxInstance)
+        //     P2pRedis p2p =  new P2pRedis(mockCli.Object,kGoodConnectionStr, null, MockMuxConnectFactory);
+        //     Assert.That(p2p, Is.Not.Null);
+        // }
     }
 
 }
