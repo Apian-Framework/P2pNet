@@ -1,7 +1,8 @@
 {
     "name": "P2pRedis",
     "references": [
-        "P2pNet"
+        "P2pNet",
+        "UniLog"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
