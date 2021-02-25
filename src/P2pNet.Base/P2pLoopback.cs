@@ -34,9 +34,9 @@ namespace P2pNet
             }
         }
 
-        protected override void _Join(string mainChannel)
+        protected override void _Join(P2pNetChannelInfo mainChannel)
         {
-            listeningTo.Add(mainChannel);
+            listeningTo.Add(mainChannel.id);
             listeningTo.Add(localId);
         }
 

@@ -37,6 +37,7 @@ namespace P2pNet
         protected long lastSentToTs = 0; // stamp for last message we sent (use to throttle pings somewhat)
         protected long lastClockSyncMs = 0; // so we know if we're syncing
         protected long lastMsgId = 0; // Last msg rcvd from this peer. Each peer tags each mesage with a serial # (nextMsgId in P2PNetBase)
+
         protected int pingTimeoutMs;
         protected int dropTimeoutMs;
         protected int syncTimeoutMs;
