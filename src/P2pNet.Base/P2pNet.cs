@@ -11,11 +11,10 @@ namespace P2pNet
     // in dumb stuff, like a field called "_p2PFooBar" with the 2nd P capped.
     public interface IP2pNetClient
     {
-        string P2pHelloData(); // Hello data FOR remote peer. Probably JSON-encoded by the p2pnet client.
-        void OnPeerJoined(string p2pId, string helloData);
-        void OnPeerSync(string p2pId, long clockOffsetMs, long netLagMs);
-        void OnPeerLeft(string p2pId);
-        void OnClientMsg(string from, string to, long msSinceSent, string payload);
+        void OnPeerJoined(string channel, string p2pId, string helloData);
+        void OnPeerSync(string channel, string p2pId, long clockOffsetMs, long netLagMs);
+        void OnPeerLeft(string channel, string p2pId);
+        void OnClientMsg(string from, string toChan, long msSinceSent, string payload);
     }
 
     public interface IP2pNet
@@ -23,12 +22,12 @@ namespace P2pNet
         // ReSharper disable UnusedMember.Global
         void Loop(); // needs to be called periodically (drives message pump + group handling)
         string GetId(); // Local peer's P2pNet ID.
-        P2pNetChannelInfo GetMainChannel();
-        void Join(P2pNetChannelInfo mainChannel);
-        void AddSubchannel(P2pNetChannelInfo subChannel);
+        P2pNetChannel GetMainChannel();
+        void Join(P2pNetChannelInfo mainChannel, string helloData);
+        void AddSubchannel(P2pNetChannelInfo subChannel, string helloData);
         void RemoveSubchannel(string subChannelId);
         List<string> GetPeerIds();
-        string GetPeerData(string peerId); // Remote peer's HELLO data
+        string GetPeerData(string channelId, string peerId); // Remote peer's HELLO data
         PeerClockSyncData GetPeerClockSyncData(string peerId);
         void Leave();
         void Send(string chan, string payload);
@@ -68,6 +67,13 @@ namespace P2pNet
         }
     }
 
+    public class HelloPayload
+    {
+        public string channelId; // a Hello is often sent straight to a peer - over the peerId channel
+        public string channelHelloData;
+        public HelloPayload(string chId, string helloData) {channelId = chId; channelHelloData = helloData;}
+    }
+
     public class SyncPayload
     {
         public long t0; //  t0 to originator
@@ -81,36 +87,32 @@ namespace P2pNet
 
     public abstract class P2pNetBase : IP2pNet
     {
-        public static Dictionary<string, string> defaultConfig = new Dictionary<string, string>()
-        {
-            {"pingMs", "7000"},
-            {"dropMs", "15000"},
-            {"syncMs", "30000"}  // clock sync
-        };
+        // FIXME: migrate this data as default to wherever it is supposed to go, then delete this comment clock
+        // public static Dictionary<string, string> defaultConfig = new Dictionary<string, string>()
+        // {
+        //     {"pingMs", "7000"},
+        //     {"dropMs", "15000"},
+        //     {"syncMs", "30000"}  // clock sync
+        // };
+        //public Dictionary<string, string> config;
 
-        public Dictionary<string, string> config;
         protected string localId;
         protected IP2pNetClient client;
         protected string connectionStr; // Transport-dependent format
 
-        protected P2pNetChannelPeers channelPeers;
+        protected P2pNetChannelPeerCollection channelPeers;
 
-        //protected P2pNetChannelInfo mainChannel; // broadcasts go here
-        //protected Dictionary<string, P2pNetPeer> peers;
-        //protected Dictionary<string, P2pNetChannelInfo> subChannels; // other non-peer channels we are using
-
-        protected Dictionary<string, long> lastMsgIdSent; // last Id sent to each channel/peer
+        protected Dictionary<string, long> lastMsgIdSent; // last Id sent to each channel. Msg IDs are serial, and PER CHANNEL
         public UniLogger logger;
 
         //public static long NowMs => DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
 
-        public P2pNetBase(IP2pNetClient _client, string _connectionStr, Dictionary<string, string> _config = null)
+        public P2pNetBase(IP2pNetClient _client, string _connectionStr)
         {
-            config = _config ?? defaultConfig;
-            client = _client;
+             client = _client;
             connectionStr = _connectionStr;
             logger = UniLogger.GetLogger("P2pNet");
-            _InitJoinParams(null);
+            _InitJoinParams();
             localId = _NewP2pId();
         }
 
@@ -118,18 +120,16 @@ namespace P2pNet
 
         public string GetId() => localId;
 
-        public P2pNetChannelInfo GetMainChannel() =>channelPeers.MainChannel;
+        public P2pNetChannel GetMainChannel() =>channelPeers.MainChannel;
 
-        public void Join(P2pNetChannelInfo _mainChannel)
+        public void Join(P2pNetChannelInfo mainChannelInfo, string localHelloData)
         {
-            _InitJoinParams(_mainChannel);
-               _Join(_mainChannel);
-            logger.Info(string.Format("*{0}: Join - Sending hello to main channel", localId));
-            _SendHello(_mainChannel.id, true);
-
+            _InitJoinParams();
+            AddChannel(mainChannelInfo, localHelloData );
+            channelPeers.SetMainChannel(mainChannelInfo.id);
         }
         public List<string> GetPeerIds() => channelPeers.GetPeerIds();
-        public string GetPeerData(string peerId) => channelPeers.GetPeerData(peerId);
+        public string GetPeerData(string channelId, string peerId) => channelPeers.GetChannelPeer(channelId, peerId)?.helloData;
         public PeerClockSyncData GetPeerClockSyncData(string peerId) => channelPeers.GetPeerClockSyncData(peerId);
 
         public void Loop()
@@ -137,46 +137,97 @@ namespace P2pNet
             if (localId == null)
                 return; // Not connected so don't bother
 
-            _Poll();
+            _Poll(); // Do any network polling
 
-            List<P2pNetPeer> peersToDelete = new List<P2pNetPeer>();
+            // TODO: iterating over everything this way is kinda brutish.
+            // Ought to be able to figure out when things will need to get done in advance and
+            // put them in a priority queue. Then in Loop() just check which need to happen this "fame"
+            // and do 'em.
 
-            foreach( P2pNetPeer peer in channelPeers.Peers.Values ) // FIXME: change this!!! It's just for refactoring before doing #ChannelTracking. &&&&&&
+            // During this update we are looking for:
+            //
+            // - Is this a pch we have never heard from at all? (special case - see AddPeer() )
+            //        Should we say hello? SHould we give up on it?
+            //
+            // - Has this pch timed out?
+            //        report it to the client? delete it from the P2pNet lists?
+            //        No. Don't delete it from here. Should consider marking it "missing", though.
+            //
+            // - Do we need send a ping to this pch?
+            //      Have we sent something to this pch recently? (do defer the ping)
+            //
+
+            // Keep in mind: under the current thinking a message or ping from a peer on one channel
+            // DOES count towards "aliveness" on a different channel
+
+            // Hello timeouts
+            List<P2pNetChannelPeer> chpsThatFailedHello = channelPeers.ChannelPeers.Values
+                .Where( chp => chp.HelloTimedOut()).ToList();
+            foreach (P2pNetChannelPeer chp in chpsThatFailedHello)
             {
-                if (!peer.HaveHeardFrom())
+                logger.Warn(string.Format("Loop - Failed HelloTimedOut(): {0} / {1}", chp.P2pId, chp.ChannelId));
+                channelPeers.RemoveChannelPeer(chp); // Just drop it
+            }
+
+            // Regular timeouts
+            List<P2pNetChannelPeer> chpsThatHaveTimedOut = channelPeers.ChannelPeers.Values
+                .Where( chp => chp.HasTimedOut()).ToList();
+            foreach (P2pNetChannelPeer chp in chpsThatHaveTimedOut)
+            {
+                logger.Verbose(string.Format("Loop - ChannelPeer timed out. Notifying client: {0} / {1}", chp.P2pId, chp.ChannelId));
+                // TODO: Maybe add the idea of a "missing" chp status and set it?
+                client.OnPeerLeft( chp.ChannelId, chp.P2pId);
+            }
+
+            //
+            // Who needs a ping?
+            //
+            // Go through all of the chp's and find all for which (now-lastSentTo <= channel.pingMs)
+
+            List<P2pNetChannelPeer> chpsThatNeedPing = channelPeers.ChannelPeers.Values
+                .Where( chp => chp.NeedsPing() ).ToList();
+
+            // filter out chps that we think have dropped (Maybe combine all of this once we've got it down?)
+            chpsThatNeedPing = chpsThatNeedPing.Where(chp => !chpsThatHaveTimedOut.Contains(chp)).ToList();  // Slow?
+
+            // What are the channels? How many peers in each?
+
+            // We want a list of (channelId, (peerList)) tuples sorted
+            // by peerCount descending...
+            List<(string,List<string>)> channelsWithPeers = chpsThatNeedPing.Select(chp => chp.ChannelId).Distinct() // unique channelIds
+                    .Select(chId => (chId, chpsThatNeedPing.Where( chp => chp.ChannelId == chId ).Select(chp => chp.P2pId).ToList())) // (chId, List<peerId>),...
+                    .OrderByDescending( tup => tup.Item2.Count())                                                   // sorted descendng be peerCnt
+                    .ToList();
+
+            // Now, we want that same list - but want for each peerId to only appear once: with the first channel it's listed with.
+            // Idea is to group as many peers as possible.
+            List<(string,List<string>)> filteredTuples = new List<(string,List<string>)>();
+            List<string> usedPeerIds = new List<string>();
+            foreach ( (string chId, List<string> peerIds) in channelsWithPeers)
+            {
+                List<string> remainingPeerIds = peerIds.Where(pid => !usedPeerIds.Contains(pid)).ToList();
+                if (remainingPeerIds.Count() > 0)
                 {
-                    // Peer must've been added manually w/AddPeer()
-                    if (peer.WeShouldSendHello())
-                    {
-                        _SendHello(peer.p2pId, true);
-                    } else if (peer.HelloTimedOut()) {
-                        // We've already sent one, and never heard back. Stop trying.
-                        logger.Warn(string.Format("*{0}: Loop - Failed HelloTimedOut(): {1}", localId, peer.p2pId));
-                        peersToDelete.Add(peer);
-                    }
-                } else {
-                    // It's someone we know about
-                    if (peer.HasTimedOut())
-                    {
-                        logger.Warn(string.Format("*{0}: Loop - Failed HasTimedOut(): {1}", localId, peer.p2pId));
-                        peersToDelete.Add(peer);
-                        client.OnPeerLeft(peer.p2pId);
-                    }
-                    else if (peer.ClockNeedsSync() )
-                    {
-                        _SendSync(peer.p2pId); // start
-                    }
+                    filteredTuples.Add((chId, remainingPeerIds));
+                    usedPeerIds.AddRange(peerIds);
                 }
             }
 
-            foreach( P2pNetPeer p in peersToDelete)
-                channelPeers.RemovePeer(p.p2pId);
+            // OK - now for every channel with more than one peer brodcast a ping. For channels with a single peer send directly
+            foreach ( (string chId, List<string> peerIds) in filteredTuples)
+            {
+                if (peerIds.Count() > 1)
+                    _SendPing(chId); // broadcast
+                else
+                    _SendPing(peerIds[0]);
+            }
 
-            List<string> whoNeedsPing = channelPeers.Peers.Values.Where( p => p.NeedsPing()).Select(p => p.p2pId).ToList(); // FIXME:
-            if ( whoNeedsPing.Count == 1)
-                _SendPing(whoNeedsPing[0]);
-            else if (whoNeedsPing.Count > 1)
-                _SendPing(channelPeers.MainChannel.id);
+            // After all that... how about clock sync?
+            List<P2pNetPeer> peersThatNeedSync = channelPeers.ChannelPeers.Values
+                .Where( chp => chp.ClockNeedsSync()).Select(chp => chp.Peer).Distinct().ToList();
+
+            foreach (P2pNetPeer peer in peersThatNeedSync)
+                _SendSync(peer.p2pId);
 
         }
 
@@ -196,25 +247,34 @@ namespace P2pNet
 
         public void AddPeer(string peerId) {} // really only makes sense for direct-connection transports
 
-        public void AddSubchannel(P2pNetChannelInfo chan)
+        public void AddSubchannel(P2pNetChannelInfo chan, string localHelloData) => AddChannel(chan, localHelloData);
+
+        protected void AddChannel(P2pNetChannelInfo chanInfo, string localHelloData)
         {
-            if (channelPeers.AddSubchannel(chan))
+            if (channelPeers.AddChannel(chanInfo, localHelloData))
             {
-                logger.Info($"Listening to subchannel: {chan.id}");
-                _Listen(chan.id);
+                P2pNetChannel chan = channelPeers.GetChannel(chanInfo.id);
+                logger.Info($"Listening to channel: {chanInfo.id}");
+                _Listen(chan.Id);
+                if (chan.Info.pingMs > 0)
+                    _SendHello(chan.Id, chan.Id, true); // broadcast
             }
         }
+
+
+
         public void RemoveSubchannel(string chanId)
         {
-            if (channelPeers.RemoveSubchannel(chanId))
-                _StopListening(chanId);
+            _SendBye(chanId);
+            channelPeers.RemoveChannel(chanId);
+            _StopListening(chanId);
         }
 
         public void Leave()
         {
-            _SendBye();
+            _SendBye(channelPeers.MainChannel.Id);
             _Leave();
-            _InitJoinParams(null);
+            _InitJoinParams();
         }
 
         // Implementation methods
@@ -245,8 +305,6 @@ namespace P2pNet
             if (msg.srcId == localId)
                 return; // main channel messages from local peer will show up here
 
-            channelPeers.GetPeer(msg.srcId)?.UpdateLastHeardFrom(); // FIXME: Is this ok? Do we need a ChannelPeers func?
-
             // TODO: get rid of switch
             switch(msg.msgType)
             {
@@ -267,17 +325,37 @@ namespace P2pNet
                     _OnSyncMsg(msg.srcId, msg);
                     break;
             }
+
+            channelPeers.GetChannelPeer(srcChannel, msg.srcId)?.UpdateLastHeardFrom();
+
         }
 
-        protected void _OnAppMsg(string srcChannel, P2pNetMessage msg)
+        protected void _OnAppMsg(string srcChanId, P2pNetMessage msg)
         {
             // dispatch a received client message
+            // Note that this is the only kind of message that gets fielded for non-tracking channels
+            P2pNetChannel channel = channelPeers.GetChannel(msg.dstChannel);
+            if (channel == null)
+            {
+                logger.Warn(string.Format("_OnAppMsg - Unknown channel: {1}", msg.dstChannel));
+                return;
+            }
+
             P2pNetPeer peer = channelPeers.GetPeer(msg.srcId);
+            P2pNetChannelInfo chanData = channel.Info;
+
+            if (peer == null && chanData.pingMs == 0) // unknown peer, non-tracking channel
+            {
+                // Add the channelPeer pair - the channle in non-tracking so there won;t be pings and it might time out
+                channelPeers.AddChannelPeer(msg.dstChannel, msg.srcId); // add the channel/peer pair
+                peer = channelPeers.GetPeer(msg.srcId);
+            }
+
             if (peer != null)
             {
-                // FIXME: if it's a non-tracking channel then an appMsg from an unknown peer is ok (but we need to add the peer to our partial list)
+                // For non-tracking/syncing peers this doesn't mean much
                 long remoteMsNow = P2pNetDateTime.NowMs + peer.ClockOffsetMs;
-                long msSinceSend = remoteMsNow - msg.sentTime;
+                long msSinceSend = (chanData.pingMs>0 && chanData.netSyncMs>0) ? remoteMsNow - msg.sentTime : 0;
 
                 if (msSinceSend < 0)
                 {
@@ -293,9 +371,9 @@ namespace P2pNet
             }
         }
 
-        protected void _InitJoinParams(P2pNetChannelInfo mainCh)
+        protected void _InitJoinParams()
         {
-            channelPeers = new P2pNetChannelPeers(mainCh);
+            channelPeers = new P2pNetChannelPeerCollection();
             lastMsgIdSent = new Dictionary<string, long>();
         }
 
@@ -310,47 +388,68 @@ namespace P2pNet
 
         protected void _UpdateSendStats(string chanId, long latestMsgId)
         {
-            lastMsgIdSent[chanId] = latestMsgId; // FIXME: move this to channel? (Assuming we use channels instead of channelInfo's) &&&&&&&
+            // Figure out who is actually getting this message and update the "last time we sent anythig to them" property.
+            // Note that ths is per channel/peer - seinding to a peer on one channel does NOT update when they heard from us on another channel.
+            // TODO: this is not quite right.
+            lastMsgIdSent[chanId] = latestMsgId;
+            P2pNetChannelInfo chanData = channelPeers.GetChannel(chanId)?.Info;
 
-            if (channelPeers.IsMainChannel(chanId))
-                foreach (P2pNetPeer p in channelPeers.Peers.Values) // FIXME: temporary (clearly, right?)
-                    p.UpdateLastSentTo(); // so we don't ping until it's needed
-            else
+            if (chanData == null) // it was sent directly to a peer
+            {
                 channelPeers.GetPeer(chanId)?.UpdateLastSentTo();
+            }
+            else
+            {
+                if (chanData.pingMs > 0) // it's a tracking channel
+                {
+                    foreach (P2pNetPeer p in channelPeers.PeersForChannel(chanId))
+                        p.UpdateLastSentTo(); // so we don't ping until it's needed
+                }
+            }
         }
 
         // Some specific messages
 
-        protected void _SendHello(string channel, bool requestReply)
+        protected void _SendHello(string destChannel, string subjectChannel, bool requestReply)
         {
-            // TODO: Instead of sending HelloData() directly there should be a HelloMsgPayload class
+            // When joining a new channel, destChannel and subjectChannel are typically the same.
+            // When replying, or sending to a single peer, the destChannel is usually the recipient peer
+            P2pNetChannel chan = channelPeers.GetChannel(subjectChannel);
             string msgType = requestReply ?  P2pNetMessage.MsgHello : P2pNetMessage.MsgHelloReply;
-            _DoSend(channel, msgType, client.P2pHelloData());
+            _DoSend(destChannel, msgType, JsonConvert.SerializeObject(new HelloPayload(subjectChannel, chan.LocalHelloData)));
         }
 
         protected void _OnHelloMsg(string srcChannel, P2pNetMessage msg)
         {
-            if (!channelPeers.IsKnownPeer(msg.srcId))
+            HelloPayload hp = JsonConvert.DeserializeObject<HelloPayload>(msg.payload);
+            string senderId = msg.srcId;
+
+            P2pNetChannelPeer chp = channelPeers.GetChannelPeer(hp.channelId, senderId);
+            if (chp != null)
+                channelPeers.AddChannelPeer(hp.channelId, senderId);
+            if (chp.helloData == null)
             {
-                logger.Verbose(string.Format("*{0}: _OnHelloMsg - Hello from {1}", localId, msg.srcId));
-                // TODO: should jsut send config dict
-                // FIXME: this is all pre-ChannelTrackg stuff. Just rejiggerred to work with channelPeer instance for now
-                P2pNetPeer p = new P2pNetPeer(msg.srcId, int.Parse(config["pingMs"]), int.Parse(config["dropMs"]), int.Parse(config["syncMs"]));
-                p.helloData = msg.payload;
-                p.UpdateLastHeardFrom();
-                channelPeers.TempAddPeer(p); // FIXME:
+                logger.Verbose($"_OnHelloMsg - Hello for channel {chp.ChannelId} from peer {chp.P2pId}" );
+
+                chp.helloData = hp.channelHelloData;
+                chp.UpdateLastHeardFrom();
                 if ( msg.msgType == P2pNetMessage.MsgHello)
                 {
-                    logger.Verbose(string.Format("*{0}: _OnHelloMsg - replying to {1}", localId, p.p2pId));
-                    _SendHello(p.p2pId, false); // we don;t want a reply
+                    logger.Verbose($"_OnHelloMsg - replying directly to {chp.P2pId} about channel {chp.ChannelId}");
+                    _SendHello(chp.P2pId, chp.ChannelId, false); // we don;t want a reply
                 }
-                logger.Verbose(string.Format("*{0}: _OnHelloMsg - calling client.({1})", localId, p.p2pId));
-                client.OnPeerJoined(p.p2pId, msg.payload);
+                logger.Verbose($"_OnHelloMsg - calling client.");
+                client.OnPeerJoined(chp.ChannelId, chp.P2pId, hp.channelHelloData);
             }
         }
 
         protected void _SendPing(string chanId)
         {
+            // FIXME: check about this "everyone" stuff. Not sure if it's a thing anymore?
+            // FIXME: actually: check about pinging in general: should we be doing something akin to what we used to do:
+            //     if there were more than one (or 2) peers that needed a ping we bcast it...
+            // Would that make sense with ChannelPeers, too?
+
             string toWhom = channelPeers.IsMainChannel(chanId) ? "Everyone" : chanId;
             logger.Verbose(string.Format($"{localId}: _SendPing() - Sending to {toWhom}" ));
             _DoSend(chanId, P2pNetMessage.MsgPing, null);
@@ -362,16 +461,20 @@ namespace P2pNet
             // Don't really do anything. We already called updateLastHeardFrom for the peer
         }
 
-        protected void _SendBye()
+        protected void _SendBye(string chanId)
         {
-            _DoSend(channelPeers.MainChannel.id, P2pNetMessage.MsgGoodbye, null);
+            _DoSend(chanId, P2pNetMessage.MsgGoodbye, null);
         }
 
         protected void _OnByeMsg(string srcChannel, P2pNetMessage msg)
         {
-            client.OnPeerLeft(msg.srcId);
-            _StopListening(msg.srcId); // FIXME: wait... are we listening to remove peer channels?
-            channelPeers.RemovePeer(msg.srcId);
+            channelPeers.RemoveChannelPeer(srcChannel, msg.srcId);
+
+            if (srcChannel == channelPeers.MainChannel.Id)
+            {
+                client.OnPeerLeft(srcChannel, msg.srcId);
+                channelPeers.RemovePeer(msg.srcId);
+            }
         }
 
         // NOTE: sync packets use the actual message timestamps. So, for insntance, when the
@@ -406,12 +509,22 @@ namespace P2pNet
                     _DoSend(from, P2pNetMessage.MsgSync, JsonConvert.SerializeObject(payload)); // send reply
                     peer.UpdateClockSync(payload.t0, payload.t1, payload.t2, payload.t3);
                     logger.Verbose($"Synced (org) {from} Lag: {peer.NetworkLagMs}, Offset: {peer.ClockOffsetMs}");
-                    client.OnPeerSync(peer.p2pId, peer.ClockOffsetMs, peer.NetworkLagMs);
-                } else {
+                    foreach (P2pNetChannel ch in channelPeers.ChannelsForPeer(peer.p2pId))
+                    {
+                        if (ch.IsSyncingClocks)
+                            client.OnPeerSync(ch.Id,peer.p2pId, peer.ClockOffsetMs, peer.NetworkLagMs);
+                    }
+
+               } else {
                     // we're the recipient and it's done
                     peer.UpdateClockSync(payload.t2, payload.t3, msg.sentTime, msg.rcptTime);
                     logger.Verbose($"Synced (rcp) {from} Lag: {peer.NetworkLagMs}, Offset: {peer.ClockOffsetMs}");
-                    client.OnPeerSync(peer.p2pId, peer.ClockOffsetMs, peer.NetworkLagMs);
+                    // TODO: fix the following copypasta
+                    foreach (P2pNetChannel ch in channelPeers.ChannelsForPeer(peer.p2pId))
+                    {
+                        if (ch.IsSyncingClocks)
+                            client.OnPeerSync(ch.Id,peer.p2pId, peer.ClockOffsetMs, peer.NetworkLagMs);
+                    }
                 }
             } else {
                logger.Warn($"Got sync from unknown peer: {from}. Ignoring.");
