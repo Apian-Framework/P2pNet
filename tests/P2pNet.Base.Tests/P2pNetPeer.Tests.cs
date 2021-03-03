@@ -13,16 +13,13 @@ namespace P2pNetBaseTests
     public class P2pNetPeerTests
     {
         const string defaultP2pId = "peerP2pId";
-        const int defaultPingMs =  5010,
-            defaultDropMs = 12123,
-            defaultSyncMs = 19991;
+        const int  defaultSyncMs = 19991;
 
         public P2pNetPeer CreateDefaultTestPeer()
         {
-            P2pNetPeer peer = new P2pNetPeer(defaultP2pId, defaultPingMs, defaultDropMs, defaultSyncMs);
+            P2pNetPeer peer = new P2pNetPeer(defaultP2pId);
             Assert.That(peer, Is.Not.Null);
             Assert.That(peer.p2pId, Is.EqualTo(defaultP2pId));
-            Assert.That(peer.helloData, Is.Null);
             return peer;
         }
 
@@ -142,55 +139,12 @@ namespace P2pNetBaseTests
         {
             // public P2pNetPeer(string _p2pId, int _pingMs, int _dropMs, int _syncMs)
             const string p2pId = "p2pId";
-            const int pingMs =  5010,
-                dropMs = 12123,
-                syncMs = 19991;
 
-            P2pNetPeer peer = new P2pNetPeer(p2pId, pingMs, dropMs, syncMs);
+            P2pNetPeer peer = new P2pNetPeer(p2pId);
             Assert.That(peer, Is.Not.Null);
             Assert.That(peer.p2pId, Is.EqualTo(p2pId));
-            Assert.That(peer.helloData, Is.Null);
         }
 
-        // [Test]
-        // // Trivial coverage tests
-        // public void P2pNetPeer_PublicPropertyOneLiners()
-        // {
-        //     P2pNetPeer peer = CreateDefaultTestPeer();
-        //     Assert.That(peer, Is.Not.Null);
-
-        //    long lag = peer.NetworkLagMs;
-        //    Assert.That(lag, Is.EqualTo(0));
-
-        //     long clockOffMs = peer.ClockOffsetMs;
-        //     Assert.That(clockOffMs, Is.EqualTo(0));
-
-        //     long sinceSync = peer.MsSinceClockSync;
-        //     Assert.That(sinceSync, Is.EqualTo(-1));
-        // }
-
-
-        [Test]
-        // public bool ValidateMsgId(long msgId)
-        // ID must be larger that previous.
-        // Side effect: if valid, previous is set to msgId
-        public void P2pNetPeer_ValidatMsgId()
-        {
-            P2pNetPeer peer = CreateDefaultTestPeer();
-            Assert.That(peer, Is.Not.Null);
-
-            bool valid = peer.ValidateMsgId(1);
-            Assert.That(valid, Is.True); // was 0 now 1
-
-            valid = peer.ValidateMsgId(1);
-            Assert.That(valid, Is.False); // was 1 now 1
-
-            valid = peer.ValidateMsgId(5);
-            Assert.That(valid, Is.True); // was 1 now 5
-
-            valid = peer.ValidateMsgId(3);
-            Assert.That(valid, Is.False); // was 5 now 5
-        }
 
         [Test]
         // Exercise the peer clock sync internals
@@ -198,7 +152,7 @@ namespace P2pNetBaseTests
         {
             P2pNetPeer peer = CreateDefaultTestPeer();
             Assert.That(peer, Is.Not.Null);
-            Assert.That(peer.ClockNeedsSync(), Is.True);
+            Assert.That(peer.ClockNeedsSync(defaultSyncMs), Is.True);
             Assert.That(peer.CurrentlySyncing, Is.False);
 
             SyncTestParams testParams = new SyncTestParams()
@@ -214,9 +168,9 @@ namespace P2pNetBaseTests
 
             _Do_RemoteInitiatedClockSync(peer, testParams);
 
-            bool bob = peer.ClockNeedsSync();
+            bool bob = peer.ClockNeedsSync(defaultSyncMs);
 
-            Assert.That(peer.ClockNeedsSync(), Is.False);
+            Assert.That(peer.ClockNeedsSync(defaultSyncMs), Is.False);
 
         }
 
@@ -225,7 +179,7 @@ namespace P2pNetBaseTests
         {
             P2pNetPeer peer = CreateDefaultTestPeer();
             Assert.That(peer, Is.Not.Null);
-            Assert.That(peer.ClockNeedsSync(), Is.True);
+            Assert.That(peer.ClockNeedsSync(defaultSyncMs), Is.True);
             Assert.That(peer.CurrentlySyncing, Is.False);
 
             SyncTestParams testParams = new SyncTestParams()
@@ -248,7 +202,7 @@ namespace P2pNetBaseTests
             // Different branches happen if a clock has been synced more than once
             P2pNetPeer peer = CreateDefaultTestPeer();
             Assert.That(peer, Is.Not.Null);
-            Assert.That(peer.ClockNeedsSync(), Is.True);
+            Assert.That(peer.ClockNeedsSync(defaultSyncMs), Is.True);
             Assert.That(peer.CurrentlySyncing, Is.False);
             Assert.That(peer.MsSinceClockSync, Is.EqualTo(-1));
 
@@ -265,7 +219,7 @@ namespace P2pNetBaseTests
 
             _Do_RemoteInitiatedClockSync(peer, testParams);
 
-            Assert.That(peer.ClockNeedsSync(), Is.False);
+            Assert.That(peer.ClockNeedsSync(defaultSyncMs), Is.False);
             Assert.That(peer.MsSinceClockSync, Is.EqualTo(0)); // local "clock" hasn't moved
 
             SyncTestParams testParams2 = new SyncTestParams()
@@ -280,30 +234,32 @@ namespace P2pNetBaseTests
             };
 
             P2pNetDateTime.Now =() => new DateTime(testParams2.localBaseMs * TimeSpan.TicksPerMillisecond);
-            Assert.That(peer.ClockNeedsSync(), Is.True);
+            Assert.That(peer.ClockNeedsSync(defaultSyncMs), Is.True);
             Assert.That(peer.CurrentlySyncing, Is.False);
 
             _Do_LocalInitiatedClockSync(peer, testParams2);
 
         }
 
+        [Test]
+        public void P2pNetPeer_LasstHeardFromAndSentTo()
+        {
+            long testMs = 63743025676711; // some time during Dec 8, 2020
+            DateTime testDT = new DateTime(testMs *  TimeSpan.TicksPerMillisecond);
 
-        // Still need to deal with:
-        // public long MsSinceClockSync
-        // public bool CurrentlySyncing()
-        // public bool ClockNeedsSync()
-        // public bool HaveTriedToContact()
-        // public bool HaveHeardFrom()
-        // public bool WeShouldSendHello()
-        // public bool HelloTimedOut()
-        // public bool HasTimedOut()
-        // public bool NeedsPing()
+            P2pNetPeer peer = CreateDefaultTestPeer();
+            Assert.That(peer.LastHeardFromTs, Is.EqualTo(0));
+            Assert.That(peer.LastSentToTs, Is.EqualTo(0));
 
-        // using:
-        // public void UpdateClockSync(long t0, long t1, long t2, long t3)
-        // public void ReportSyncProgress()
-        // public void UpdateLastHeardFrom()
-        // public void UpdateLastSentTo()
+            P2pNetDateTime.Now =() => new DateTime(testDT.Ticks);
+
+            peer.UpdateLastHeardFrom();
+            Assert.That(peer.LastHeardFromTs, Is.EqualTo(testMs));
+
+            peer.UpdateLastSentTo();
+            Assert.That(peer.LastSentToTs, Is.EqualTo(testMs));
+
+        }
 
 
 

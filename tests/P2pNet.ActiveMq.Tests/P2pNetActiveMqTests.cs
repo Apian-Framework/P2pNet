@@ -20,17 +20,17 @@ namespace P2pNetTests
                 throw new NotImplementedException();
             }
 
-            public void OnPeerJoined(string p2pId, string helloData)
+            public void OnPeerJoined(string chanId, string p2pId, string helloData)
             {
                 throw new NotImplementedException();
             }
 
-            public void OnPeerLeft(string p2pId)
+            public void OnPeerLeft(string chanId, string p2pId)
             {
                 throw new NotImplementedException();
             }
 
-            public void OnPeerSync(string p2pId, long clockOffsetMs, long netLagMs)
+            public void OnPeerSync(string chanId, string p2pId, long clockOffsetMs, long netLagMs)
             {
                 throw new NotImplementedException();
             }

@@ -13,33 +13,6 @@ namespace P2pNetBaseTests
     // These are trivial tests for classes which are pretty much just data stores
     //
     [TestFixture]
-    public class P2pNetDateTimeTests
-    {
-        // This class is a test-friendly version of DateTime.
-        [Test]
-        public void P2pNetDateTime_Default()
-        {
-            long t0 = P2pNetDateTime.NowMs;
-            Assert.That(t0, Is.LessThanOrEqualTo(DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond));
-        }
-
-        [Test]
-        public void P2pNetDateTime_Custom()
-        {
-            long testMs = 63743025676711; // some time during Dec 8, 2020
-            DateTime testDT = new DateTime(testMs *  TimeSpan.TicksPerMillisecond);
-
-            long origMs = P2pNetDateTime.NowMs; // kinda dopey, but need it for test coverage
-            Assert.That(origMs, Is.Not.EqualTo(testMs));
-
-            P2pNetDateTime.Now =() => new DateTime(testDT.Ticks);
-            Assert.That(P2pNetDateTime.NowMs, Is.EqualTo(testMs));
-        }
-
-    }
-
-
-    [TestFixture]
     public class PeerClockSyncDataTests
     {
         // Only has a constructor test
@@ -114,6 +87,24 @@ namespace P2pNetBaseTests
 
             string str = pld.ToString();
             Assert.That(str, Is.EqualTo(testStringRep));
+        }
+    }
+
+    [TestFixture]
+    public class HelloPayloadTests
+    {
+        [Test]
+        public void HelloPayload_Ctor()
+        {
+            // public HelloPayload(string chId, string helloData) {channelId = chId; channelHelloData = helloData;}
+            const string channelId = "channelId";
+            const string helloData = "helloData";
+
+
+            HelloPayload pld =  new HelloPayload(channelId, helloData);
+            Assert.That(pld, Is.Not.Null);
+            Assert.That(pld.channelId, Is.EqualTo(channelId));
+            Assert.That(pld.channelHelloData, Is.EqualTo(helloData));
 
         }
 
