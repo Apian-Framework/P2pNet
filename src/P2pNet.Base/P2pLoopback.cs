@@ -12,7 +12,7 @@ namespace P2pNet
         List<string> listeningTo;
         List<P2pNetMessage> messageQueue;
 
-        public P2pLoopback(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null) : base(_client, _connectionString,  _config)
+        public P2pLoopback(IP2pNetClient _client, string _connectionString) : base(_client, _connectionString)
         {
             messageQueue = new List<P2pNetMessage>();
             listeningTo = new List<string>();

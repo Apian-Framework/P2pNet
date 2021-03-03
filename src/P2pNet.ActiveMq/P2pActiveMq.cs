@@ -15,7 +15,7 @@ namespace P2pNet
         private List<P2pNetMessage> messageQueue;
         private readonly object queueLock = new object();
 
-        public P2pActiveMq(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null) : base(_client, _connectionString,  _config)
+        public P2pActiveMq(IP2pNetClient _client, string _connectionString) : base(_client, _connectionString)
         {
             messageQueue = new List<P2pNetMessage>();
             listeningDict = new Dictionary<string, MessageListener>();

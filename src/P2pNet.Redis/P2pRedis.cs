@@ -12,7 +12,7 @@ namespace P2pNet
         List<P2pNetMessage> messageQueue;
         public IConnectionMultiplexer RedisCon {get; private set; } = null;
 
-        public P2pRedis(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null, Func<string, IConnectionMultiplexer> muxConnectFactory=null) : base(_client, _connectionString,  _config)
+        public P2pRedis(IP2pNetClient _client, string _connectionString, Func<string, IConnectionMultiplexer> muxConnectFactory=null) : base(_client, _connectionString)
         {
             // valid connection string is typically: "<host>,password=<password>"
             try {
