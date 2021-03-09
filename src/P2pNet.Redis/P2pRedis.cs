@@ -61,8 +61,7 @@ namespace P2pNet
 
         protected override void _Join(P2pNetChannelInfo mainChannel)
         {
-            _Listen(mainChannel.id);
-            _Listen(localId);
+            // Doesn't do anything
         }
 
         protected override void _Leave()

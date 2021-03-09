@@ -24,6 +24,28 @@ namespace P2pNet
             netSyncMs = _netSyncMs;
             maxPeers = _maxPeers;
         }
+        public P2pNetChannelInfo(P2pNetChannelInfo inf)
+        {
+            name = inf.name;
+            id = inf.id;
+            dropMs = inf.dropMs;
+            pingMs = inf.pingMs;
+            netSyncMs = inf.netSyncMs;
+            maxPeers = inf.maxPeers;
+        }
+
+        public P2pNetChannelInfo() {}
+
+        public bool IsEquivalentTo(P2pNetChannelInfo inf2)
+        {
+            return ( name.Equals(inf2.name)
+                && id.Equals(inf2.id)
+                && dropMs == inf2.dropMs
+                && pingMs == inf2.pingMs
+                && netSyncMs == inf2.netSyncMs
+                && maxPeers == inf2.maxPeers );
+        }
+
     }
 
     public class P2pNetChannel

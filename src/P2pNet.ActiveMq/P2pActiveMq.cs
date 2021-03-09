@@ -48,8 +48,7 @@ namespace P2pNet
 
         protected override void _Join(P2pNetChannelInfo mainChannel)
         {
-            _Listen(mainChannel.id);
-            _Listen(localId);
+            // Nothing to do
         }
 
         protected void _OnMessage(IMessage receivedMsg) // for all topics

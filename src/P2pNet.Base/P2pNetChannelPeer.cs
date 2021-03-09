@@ -66,8 +66,6 @@ namespace P2pNet
                 && P2pNetDateTime.NowMs - Peer.LastHeardFromTs > Channel.Info.dropMs;
         }
 
-        public void UpdateLastHeardFrom() =>  Peer.UpdateLastHeardFrom();
-
         public void UpdateLastSentTo() =>  Peer.UpdateLastSentTo();
 
         public bool NeedsPing() => (Channel.Info.pingMs > 0) && (P2pNetDateTime.NowMs - Peer.LastSentToTs) > Channel.Info.pingMs;
@@ -97,10 +95,11 @@ namespace P2pNet
         {
             Peers = new Dictionary<string, P2pNetPeer>();
             Channels = new Dictionary<string, P2pNetChannel>();
+            ChannelPeers = new Dictionary<string, P2pNetChannelPeer>();
             logger = UniLogger.GetLogger("P2pNet");
         }
 
-        public void SetMainChannel(string channelId) => GetChannel(channelId);
+        public void SetMainChannel(P2pNetChannel chan) => MainChannel = chan;
 
         // ChannelPeer Ops
         public static string ChannelPeerKey(string channelId, string peerId) =>  $"{peerId}/{channelId}";
@@ -112,27 +111,28 @@ namespace P2pNet
         }
         public P2pNetChannelPeer GetChannelPeer(string chanlId, string peerId) => GetChannelPeer( ChannelPeerKey(chanlId, peerId));
 
-        public bool AddChannelPeer(string chanId, string peerId)
+        public P2pNetChannelPeer AddChannelPeer(string chanId, string peerId)
         {
             P2pNetChannel channel = GetChannel(chanId);
             if (channel == null)
             {
                 logger.Warn($"AddChannelPeer() - Unknown channel: {chanId}");
-                return false;
+                return null;
             }
 
             string chpKey = ChannelPeerKey(chanId, peerId);
             if (ChannelPeers.ContainsKey(chpKey))
             {
                 logger.Warn($"AddChannelPeer() - channelPeer exists: {chpKey}"); // Warning? Maybe just Info?
-                return false; // exists
+                return ChannelPeers[chpKey]; // exists - Or should we return null and fail?
             }
 
-            P2pNetPeer peer = GetPeer(peerId) ?? new P2pNetPeer(peerId);
+            P2pNetPeer peer = GetPeer(peerId) ?? AddPeer(new P2pNetPeer(peerId));
             ChannelPeers[chpKey] = new P2pNetChannelPeer(peer, channel);
-            return true;
+            logger.Info($"AddChannelPeer() - Added: {channel.Id}/{peerId}");
+            return ChannelPeers[chpKey];
         }
-        public bool AddChannelPeer(P2pNetChannelInfo chan, string peerId) => AddChannelPeer(chan.id, peerId);
+        public P2pNetChannelPeer AddChannelPeer(P2pNetChannelInfo chan, string peerId) => AddChannelPeer(chan.id, peerId);
 
         public void RemoveChannelPeer(P2pNetChannelPeer chp)
         {
@@ -168,9 +168,10 @@ namespace P2pNet
         {
             return Peers.ContainsKey(peerId) ? Peers[peerId] : null;
         }
-        public void TempAddPeer(P2pNetPeer peer) // FIXME: delete this func
+        private P2pNetPeer AddPeer(P2pNetPeer peer)
         {
             Peers[peer.p2pId] = peer;
+            return peer;
         }
         public bool RemovePeer(string peerId)
         {

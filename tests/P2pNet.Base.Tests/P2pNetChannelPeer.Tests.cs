@@ -9,15 +9,14 @@ using UniLog;
 
 namespace P2pNetBaseTests
 {
-    [TestFixture]
-    public class P2pNetChannelPeerTests
+    public class TestFixtureBase
     {
-        const string defLocalPeerId = "defLocalPeerId",
+        public const string defLocalPeerId = "defLocalPeerId",
             defChannelId = "defChannelId",
             defChannelName = "defChannelNameId",
             defLocalHelloData = "defLocalHelloData";
 
-        const int defDropMs = 10000,
+        public const int defDropMs = 10000,
             defTrackingPingMs = 3000,
             defClockSyncOnMs = 12000,
             defMaxPeerLimired = 20;
@@ -53,7 +52,12 @@ namespace P2pNetBaseTests
         {
             return new P2pNetChannel(info, defLocalHelloData);;
         }
+    }
 
+
+    [TestFixture]
+    public class P2pNetChannelPeerTests : TestFixtureBase
+    {
         [Test]
         public void P2pNetChannelPeer_ConstructorWorks()
         {
@@ -109,8 +113,33 @@ namespace P2pNetBaseTests
     }
 
     [TestFixture]
-    public class P2pNetChannelPeerCollectionTests
+    public class P2pNetChannelPeerCollectionTests : TestFixtureBase
     {
+        [Test]
+        public void P2pNetChannelPeerCollection_ConstructorWorks()
+        {
+            // public P2pNetChannelPeer(P2pNetPeer peer, P2pNetChannel channel)
+            P2pNetChannelPeerCollection coll = new P2pNetChannelPeerCollection();
+            Assert.That(coll, Is.Not.Null);
+            Assert.That(coll.Channels, Is.Not.Null);
+            Assert.That(coll.Peers, Is.Not.Null);
+            Assert.That(coll.ChannelPeers, Is.Not.Null);
+        }
+
+        [Test]
+        public void CPC_AddMainChannel()
+        {
+            P2pNetChannelInfo chInfo = chInfoTracking();
+            string chanData = "foo";
+
+            // public P2pNetChannelPeer(P2pNetPeer peer, P2pNetChannel channel)
+            P2pNetChannelPeerCollection coll = new P2pNetChannelPeerCollection();
+            Assert.That(coll, Is.Not.Null);
+
+            coll.AddMainChannel(chInfo, chanData);
+            Assert.That(coll.MainChannel.Info, Is.EqualTo(chInfo));
+
+        }
 
     }
 
