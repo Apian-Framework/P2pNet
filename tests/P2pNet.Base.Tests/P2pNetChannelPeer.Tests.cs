@@ -130,14 +130,15 @@ namespace P2pNetBaseTests
         public void CPC_AddMainChannel()
         {
             P2pNetChannelInfo chInfo = chInfoTracking();
-            string chanData = "foo";
+            P2pNetChannel mainChan = CreateChannel(chInfo); // defaultPeerData
 
             // public P2pNetChannelPeer(P2pNetPeer peer, P2pNetChannel channel)
             P2pNetChannelPeerCollection coll = new P2pNetChannelPeerCollection();
             Assert.That(coll, Is.Not.Null);
 
-            coll.AddMainChannel(chInfo, chanData);
+            coll.SetMainChannel(mainChan);
             Assert.That(coll.MainChannel.Info, Is.EqualTo(chInfo));
+            Assert.That(coll.MainChannel.LocalHelloData, Is.EqualTo(defLocalHelloData));
 
         }
 
