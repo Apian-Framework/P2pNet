@@ -127,11 +127,11 @@ namespace P2pNet
             // The localId "channel" is special - it's not really a P2pNet channel
             // at all: it's just where direct mssages come in, and there's not tracking
             // or timing or anything connected to it. On the other hand - if a message comes in
-            // on it from a peer that is in the channelPeers list (for a "real" channel) then it will
-            // get it's "heardFrom" property updated.
+            // on it from a peer that is already in the channelPeers list (for a "real" channel)
+            // then that peer it will get its "heardFrom" property updated.
             _InitJoinParams();
-            _Listen(localId);
-            _AddChannel(mainChannelInfo, localHelloData );
+            _Listen(localId); // Listen, but don;t set up a proper "channel"
+            _AddChannel(mainChannelInfo, localHelloData ); // Set up channel AND listen
             channelPeers.SetMainChannel( channelPeers.GetChannel(mainChannelInfo.id));
         }
 
