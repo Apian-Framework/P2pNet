@@ -506,9 +506,13 @@ namespace P2pNet
         protected void _SendSync(string dest, SyncPayload _payload=null)
         {
             SyncPayload payload = _payload ?? new SyncPayload();
-            channelPeers.GetPeer(dest).ReportSyncProgress();
-            // payload "sent time" gets set by receiver.
-            _DoSend(dest, P2pNetMessage.MsgSync, JsonConvert.SerializeObject(payload));
+            P2pNetPeer peer = channelPeers.GetPeer(dest);
+            if (peer != null)   // seen it happen
+            {
+                peer.ReportSyncProgress();
+                // payload "sent time" gets set by receiver.
+                _DoSend(dest, P2pNetMessage.MsgSync, JsonConvert.SerializeObject(payload));
+            }
         }
 
         protected void _OnSyncMsg(string from, P2pNetMessage msg)
