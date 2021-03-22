@@ -387,7 +387,7 @@ namespace P2pNet
                 client.OnClientMsg(msg.srcId, msg.dstChannel, realMsSinceSend, msg.payload);
 
             } else {
-                logger.Warn($"_OnAppMsg - Unknown peer {msg.srcId} sending on channel {msgChanId} for channel {channel.Id}");
+                logger.Warn($"_OnAppMsg - Unknown peer {msg.srcId} sending on channel {msgChanId} for channel {msg.dstChannel}");
             }
         }
 
