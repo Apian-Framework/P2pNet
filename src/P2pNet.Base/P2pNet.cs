@@ -179,7 +179,7 @@ namespace P2pNet
                 .Where( chp => chp.HelloTimedOut()).ToList();
             foreach (P2pNetChannelPeer chp in chpsThatFailedHello)
             {
-                logger.Warn(string.Format("Loop - Failed HelloTimedOut(): {0} / {1}", chp.P2pId, chp.ChannelId));
+                logger.Warn($"Loop - Failed HelloTimedOut(). Chp: {chp.P2pId}/{chp.ChannelId}");
                 channelPeers.RemoveChannelPeer(chp); // Just drop it
             }
 
@@ -188,7 +188,7 @@ namespace P2pNet
                 .Where( chp => chp.HasTimedOut()).ToList();
             foreach (P2pNetChannelPeer chp in chpsThatHaveTimedOut)
             {
-                logger.Verbose(string.Format("Loop - ChannelPeer timed out. Notifying client: {0} / {1}", chp.P2pId, chp.ChannelId));
+                logger.Warn($"Loop - ChannelPeer {chp.P2pId}/{chp.ChannelId} timed out. Notifying client.");
                 // TODO: Maybe add the idea of a "missing" chp status and set it?
                 client.OnPeerLeft( chp.ChannelId, chp.P2pId);
 
