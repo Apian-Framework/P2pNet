@@ -60,9 +60,18 @@ namespace P2pNet
                 && (P2pNetDateTime.NowMs - firstHelloSentTs > Channel.Info.dropMs);
         }
 
+        public bool IsMissing()
+        {
+            return HaveHeardFrom()
+                && Channel.IsTrackingMemberShip  // must be tracking/pinging
+                && Channel.ReportsMissingPeers
+                && P2pNetDateTime.NowMs - Peer.LastHeardFromTs > Channel.Info.missingMs;
+        }
+
         public bool HasTimedOut()
         {
-            return  Channel.Info.dropMs > 0
+            return HaveHeardFrom()
+                &&  Channel.Info.dropMs > 0
                 && P2pNetDateTime.NowMs - Peer.LastHeardFromTs > Channel.Info.dropMs;
         }
 
@@ -178,7 +187,12 @@ namespace P2pNet
             if (IsKnownPeer(peerId))
             {
                 // FIXME: remove any P2pNetChannelPeers &&&&&&
-                Peers.Remove(peerId);
+                List<P2pNetChannelPeer> cpsToRemove = ChannelPeers.Values.Where(cp => cp.Peer.p2pId == peerId).ToList();
+                foreach (P2pNetChannelPeer c in cpsToRemove)
+                    RemoveChannelPeer(c);
+
+                if (Peers.Keys.Contains(peerId)) // should be gone after the above
+                    Peers.Remove(peerId);
                 return true;
             }
             return false;

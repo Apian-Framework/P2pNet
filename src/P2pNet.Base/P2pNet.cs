@@ -12,8 +12,9 @@ namespace P2pNet
     public interface IP2pNetClient
     {
         void OnPeerJoined(string channel, string p2pId, string helloData);
-        void OnPeerSync(string channel, string p2pId, long clockOffsetMs, long netLagMs);
+        void OnPeerMissing(string channel, string p2pId);
         void OnPeerLeft(string channel, string p2pId);
+        void OnPeerSync(string channel, string p2pId, long clockOffsetMs, long netLagMs);
         void OnClientMsg(string from, string toChan, long msSinceSent, string payload);
     }
 
@@ -32,6 +33,7 @@ namespace P2pNet
         void Leave();
         void Send(string chan, string payload);
         void AddPeer(string peerId);
+        void RemovePeer(string peerId);
         // ReSharper enable UnusedMember.Global
     }
 
@@ -184,17 +186,26 @@ namespace P2pNet
             }
 
             // Regular timeouts
+
+            // Not long enough to be dropped - but long enough the app ought to know
+            List<P2pNetChannelPeer> chpsThatAreMissing = channelPeers.ChannelPeers.Values
+                .Where( chp => chp.IsMissing()).ToList();
+            foreach (P2pNetChannelPeer chp in chpsThatAreMissing)
+            {
+                logger.Warn($"Loop - ChannelPeer {chp.P2pId}/{chp.ChannelId} is missing. Notifying client.");
+                client.OnPeerMissing(chp.ChannelId, chp.P2pId);
+            }
+
+            // Really, really gone. Report 'em and remove 'em
             List<P2pNetChannelPeer> chpsThatHaveTimedOut = channelPeers.ChannelPeers.Values
                 .Where( chp => chp.HasTimedOut()).ToList();
             foreach (P2pNetChannelPeer chp in chpsThatHaveTimedOut)
             {
-                logger.Warn($"Loop - ChannelPeer {chp.P2pId}/{chp.ChannelId} timed out. Notifying client.");
+                logger.Warn($"Loop - ChannelPeer {chp.P2pId}/{chp.ChannelId} timed out. Notifying client and removing peer.");
                 // TODO: Maybe add the idea of a "missing" chp status and set it?
                 client.OnPeerLeft( chp.ChannelId, chp.P2pId);
 
-                channelPeers.RemoveChannelPeer(chp); // FIXME: In the new p2pNet "rethink" we should not remove the peers when they time out
-                                                     // instead (as hinted at above) we should mark them as "missing" and wait for the app to tell us to remove them.
-                                                     // Keeping it this way now in order not to break app behavior - which expects them to be gone.
+                channelPeers.RemoveChannelPeer(chp);
             }
 
             //
@@ -264,6 +275,12 @@ namespace P2pNet
         }
 
         public void AddPeer(string peerId) {} // really only makes sense for direct-connection transports
+
+        public void RemovePeer(string peerId)
+        {
+            logger.Info($"RemovePeer() Removing: {peerId}");
+            channelPeers.RemovePeer(peerId);
+        }
 
         public void AddSubchannel(P2pNetChannelInfo chan, string localHelloData) => _AddChannel(chan, localHelloData);
 

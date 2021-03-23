@@ -13,14 +13,17 @@ namespace P2pNet
         public string id;
         public int dropMs;
         public int pingMs; // 0 means "don't track". No hello, no pings, no drop, no timing.
+        public int missingMs; // 0 means "don't report peers as mising". Idea is that an app might not want a peer dropped from
+            // the entire network if it has just kinda hung for a few seconds - but the app might want to be notified.
         public int netSyncMs; // zero means "don't compute net timing stats" - meaningless if pingMs is 0.
         public int maxPeers;  // 0 means no max
-        public P2pNetChannelInfo(string _name, string _id, int _dropMs, int _pingMs=0,  int _netSyncMs=0, int _maxPeers=0)
+        public P2pNetChannelInfo(string _name, string _id, int _dropMs, int _pingMs=0,  int _missingMs = 0, int _netSyncMs=0, int _maxPeers=0)
         {
             name = _name;
             id = _id;
             dropMs = _dropMs;
             pingMs = _pingMs;
+            missingMs = _missingMs;
             netSyncMs = _netSyncMs;
             maxPeers = _maxPeers;
         }
@@ -30,6 +33,7 @@ namespace P2pNet
             id = inf.id;
             dropMs = inf.dropMs;
             pingMs = inf.pingMs;
+            missingMs = inf.missingMs;
             netSyncMs = inf.netSyncMs;
             maxPeers = inf.maxPeers;
         }
@@ -42,6 +46,7 @@ namespace P2pNet
                 && id.Equals(inf2.id)
                 && dropMs == inf2.dropMs
                 && pingMs == inf2.pingMs
+                && missingMs == inf2.missingMs
                 && netSyncMs == inf2.netSyncMs
                 && maxPeers == inf2.maxPeers );
         }
@@ -56,6 +61,7 @@ namespace P2pNet
         public string Name { get => Info.name; }
 
         public bool IsTrackingMemberShip { get => Info.pingMs > 0;}
+        public bool ReportsMissingPeers { get => Info.missingMs > 0; }
         public bool IsSyncingClocks { get => Info.netSyncMs > 0 && Info.pingMs > 0; }
 
         public P2pNetChannel(P2pNetChannelInfo info, string localHelloData)

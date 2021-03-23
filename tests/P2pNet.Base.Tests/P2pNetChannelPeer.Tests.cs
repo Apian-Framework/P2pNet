@@ -18,6 +18,7 @@ namespace P2pNetBaseTests
 
         public const int defDropMs = 10000,
             defTrackingPingMs = 3000,
+            defReportMissingMs = 5000,
             defClockSyncOnMs = 12000,
             defMaxPeerLimired = 20;
 
@@ -26,6 +27,7 @@ namespace P2pNetBaseTests
             defChannelId,
             defDropMs,
             0, // no tracking
+            0, // no missing peer reports
             0, // no sync
             0 // maxPeers  <- no max
         );
@@ -35,6 +37,7 @@ namespace P2pNetBaseTests
             defChannelId,
             defDropMs,
             defTrackingPingMs,
+            defReportMissingMs,
             0, // no clock sync
             0 // maxPeers  <- no max
         );
@@ -44,6 +47,7 @@ namespace P2pNetBaseTests
             defChannelId,
             defDropMs,
             defTrackingPingMs,
+            defReportMissingMs,
             defClockSyncOnMs,
             0 // maxPeers  <- no max
         );
@@ -76,7 +80,7 @@ namespace P2pNetBaseTests
 
             Assert.That(chp.WeShouldSendHello, Is.True); // true given the above values
             Assert.That(chp.HelloTimedOut, Is.False);
-            Assert.That(chp.HasTimedOut, Is.True);
+            Assert.That(chp.HasTimedOut, Is.False);
             Assert.That(chp.NeedsPing, Is.True);
             Assert.That(chp.ClockNeedsSync, Is.True);
 
@@ -92,7 +96,9 @@ namespace P2pNetBaseTests
 
             // public P2pNetChannelPeer(P2pNetPeer peer, P2pNetChannel channel)
             P2pNetChannelPeer chp = new P2pNetChannelPeer(peer, CreateChannel(chInfoTracking()));
-            Assert.That(chp.HasTimedOut, Is.True);
+            Assert.That(chp.HaveHeardFrom, Is.False);
+            Assert.That(chp.HasTimedOut, Is.False);
+            Assert.That(chp.IsMissing, Is.False);
             Assert.That(chp.ClockNeedsSync, Is.False); // rest was checked above
         }
 
@@ -104,7 +110,7 @@ namespace P2pNetBaseTests
             // public P2pNetChannelPeer(P2pNetPeer peer, P2pNetChannel channel)
             P2pNetChannelPeer chp = new P2pNetChannelPeer(peer, CreateChannel(chInfoNoTracking()));
 
-            Assert.That(chp.HasTimedOut, Is.True); // peers DO time out in untracked channels
+            Assert.That(chp.HasTimedOut, Is.False);
             Assert.That(chp.WeShouldSendHello, Is.False);
             Assert.That(chp.NeedsPing, Is.False);
             Assert.That(chp.ClockNeedsSync, Is.False);

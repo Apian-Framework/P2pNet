@@ -25,6 +25,11 @@ namespace P2pNetTests
                 throw new NotImplementedException();
             }
 
+            public void OnPeerMissing(string channelId, string p2pId)
+            {
+                throw new NotImplementedException();
+            }
+
             public void OnPeerLeft(string channelId, string p2pId)
             {
                 throw new NotImplementedException();
