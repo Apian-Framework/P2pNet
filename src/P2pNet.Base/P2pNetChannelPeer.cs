@@ -60,9 +60,12 @@ namespace P2pNet
                 && (P2pNetDateTime.NowMs - firstHelloSentTs > Channel.Info.dropMs);
         }
 
+        public bool AlreadyMissing {get; set;}
+
         public bool IsMissing()
         {
             return HaveHeardFrom()
+                && !AlreadyMissing
                 && Channel.IsTrackingMemberShip  // must be tracking/pinging
                 && Channel.ReportsMissingPeers
                 && P2pNetDateTime.NowMs - Peer.LastHeardFromTs > Channel.Info.missingMs;

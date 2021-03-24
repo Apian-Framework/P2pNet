@@ -4,6 +4,7 @@ using System.Linq;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using UniLog;
+using static UniLog.UniLogger; // for SID()
 
 namespace P2pNet
 {
@@ -183,7 +184,7 @@ namespace P2pNet
                 .Where( chp => chp.HelloTimedOut()).ToList();
             foreach (P2pNetChannelPeer chp in chpsThatFailedHello)
             {
-                logger.Warn($"Loop - Failed HelloTimedOut(). Chp: {chp.P2pId}/{chp.ChannelId}");
+                logger.Warn($"Loop - Failed HelloTimedOut(). Chp: {SID(chp.P2pId)}/{chp.ChannelId}");
                 channelPeers.RemoveChannelPeer(chp); // Just drop it
             }
 
@@ -194,8 +195,9 @@ namespace P2pNet
                 .Where( chp => chp.IsMissing()).ToList();
             foreach (P2pNetChannelPeer chp in chpsThatAreMissing)
             {
-                logger.Warn($"Loop - ChannelPeer {chp.P2pId}/{chp.ChannelId} is missing. Notifying client.");
+                logger.Warn($"Loop - ChannelPeer {SID(chp.P2pId)}/{chp.ChannelId} is missing. Notifying client.");
                 client.OnPeerMissing(chp.ChannelId, chp.P2pId);
+                chp.AlreadyMissing = true; // TODO: find a better way to keep from repeating these messages
             }
 
             // Really, really gone. Report 'em and remove 'em
@@ -203,7 +205,7 @@ namespace P2pNet
                 .Where( chp => chp.HasTimedOut()).ToList();
             foreach (P2pNetChannelPeer chp in chpsThatHaveTimedOut)
             {
-                logger.Warn($"Loop - ChannelPeer {chp.P2pId}/{chp.ChannelId} timed out. Notifying client and removing peer.");
+                logger.Warn($"Loop - ChannelPeer {SID(chp.P2pId)}/{chp.ChannelId} timed out. Notifying client and removing peer.");
                 client.OnPeerLeft( chp.ChannelId, chp.P2pId);
 
                 channelPeers.RemoveChannelPeer(chp);
@@ -270,7 +272,7 @@ namespace P2pNet
                 if (channelPeers.IsMainChannel(chanId) || channelPeers.IsKnownChannel(chanId))
                     client.OnClientMsg(localId, chanId, 0, payload); // broadcast channnel loopback
 
-                logger.Debug(string.Format("*{0}: Send - sending appMsg to {1}", localId, channelPeers.IsMainChannel(chanId) ? "main channel" : chanId));
+                logger.Debug($"*{SID(localId)}: Send - sending appMsg to {(channelPeers.IsMainChannel(chanId) ? "main channel" : chanId)}");
                 _DoSend(chanId, P2pNetMessage.MsgAppl, payload);
             }
         }
@@ -279,7 +281,7 @@ namespace P2pNet
 
         public void RemovePeer(string peerId)
         {
-            logger.Info($"RemovePeer() Removing: {peerId}");
+            logger.Info($"RemovePeer() Removing: {SID(peerId)}");
             channelPeers.RemovePeer(peerId);
         }
 
@@ -342,7 +344,10 @@ namespace P2pNet
             foreach( P2pNetChannelPeer chp in channelPeers.ChannelPeersForPeer(msg.srcId) )
             {
                 if (chp.IsMissing()) // Won't be missing anymore after UnpdateLastHeardFrom() is called.
+                {
+                    chp.AlreadyMissing = false; // TODO: fin a better way to handle only sending a missing notification once
                     client.OnPeerReturned(chp.ChannelId, chp.P2pId);
+                }
             }
             channelPeers.GetPeer(msg.srcId)?.UpdateLastHeardFrom(); // Don't need to do this in each handler
 
@@ -388,7 +393,7 @@ namespace P2pNet
             if (peer == null && channel?.Info.pingMs == 0) // unknown peer, non-tracking channel
             {
                 // Add the channelPeer pair - the channel in non-tracking so there won;t be pings and it might time out
-                logger.Debug($"_OnAppMsg - Adding unknown peer {msg.srcId} sending for non-tracking channel {channel.Id}");
+                logger.Debug($"_OnAppMsg - Adding unknown peer {SID(msg.srcId) } sending for non-tracking channel {channel.Id}");
                 channelPeers.AddChannelPeer(channel.Id, msg.srcId); // add the channel/peer pair
                 peer = channelPeers.GetPeer(msg.srcId);
             }
@@ -403,16 +408,16 @@ namespace P2pNet
                     realMsSinceSend =  remoteMsNow - msg.sentTime;
                     if (realMsSinceSend < 0)
                     {
-                        logger.Debug($"_OnAppMsg() msg from {msg.srcId} w/lag < 0: {realMsSinceSend}");
+                        logger.Debug($"_OnAppMsg() msg from { SID(msg.srcId)} w/lag < 0: {realMsSinceSend}");
                         realMsSinceSend = 0;
                     }
                 }
 
-                logger.Debug(string.Format("_OnAppMsg - msg from {0}",  msg.srcId));
+                logger.Debug($"_OnAppMsg - msg from {SID(msg.srcId)}" );
                 client.OnClientMsg(msg.srcId, msg.dstChannel, realMsSinceSend, msg.payload);
 
             } else {
-                logger.Warn($"_OnAppMsg - Unknown peer {msg.srcId} sending on channel {msgChanId} for channel {msg.dstChannel}");
+                logger.Warn($"_OnAppMsg - Unknown peer {SID(msg.srcId)} sending on channel {msgChanId} for channel {msg.dstChannel}");
             }
         }
 
@@ -476,13 +481,13 @@ namespace P2pNet
 
             if (chp.helloData == null)
             {
-                logger.Verbose($"_OnHelloMsg - Hello for channel {chp.ChannelId} from peer {chp.P2pId}" );
+                logger.Verbose($"_OnHelloMsg - Hello for channel {chp.ChannelId} from peer {SID(chp.P2pId)}" );
 
                 chp.helloData = hp.channelHelloData;
                 chp.Peer.UpdateLastHeardFrom();
                 if ( msg.msgType == P2pNetMessage.MsgHello)
                 {
-                    logger.Verbose($"_OnHelloMsg - replying directly to {chp.P2pId} about channel {chp.ChannelId}");
+                    logger.Verbose($"_OnHelloMsg - replying directly to {SID(chp.P2pId)} about channel {chp.ChannelId}");
                     _SendHello(chp.P2pId, chp.ChannelId, false); // we don;t want a reply
                 }
                 logger.Verbose($"_OnHelloMsg - calling client.");
@@ -497,14 +502,14 @@ namespace P2pNet
             //     if there were more than one (or 2) peers that needed a ping we bcast it...
             // Would that make sense with ChannelPeers, too?
 
-            string toWhom = channelPeers.IsMainChannel(chanId) ? "Everyone" : chanId;
+            string toWhom = channelPeers.IsMainChannel(chanId) ? "Everyone" : SID(chanId);
             logger.Verbose(string.Format($"_SendPing() - Sending to {toWhom} on ch: {chanId}" ));
             _DoSend(chanId, P2pNetMessage.MsgPing, null);
         }
 
         protected void _OnPingMsg(string srcChannel, P2pNetMessage msg)
         {
-            logger.Verbose(string.Format("*{0}: _OnPingMsg - Ping from {1}", localId, msg.srcId));
+            logger.Verbose($"*{SID(localId)}: _OnPingMsg - Ping from {SID(msg.srcId)}");
             // Don't really do anything. We already called updateLastHeardFrom for the peer
         }
 
@@ -559,7 +564,7 @@ namespace P2pNet
                     payload.t3 = msg.rcptTime;
                     _DoSend(from, P2pNetMessage.MsgSync, JsonConvert.SerializeObject(payload)); // send reply
                     peer.UpdateClockSync(payload.t0, payload.t1, payload.t2, payload.t3);
-                    logger.Verbose($"Synced (org) {from} Lag: {peer.NetworkLagMs}, Offset: {peer.ClockOffsetMs}");
+                    logger.Verbose($"Synced (org) {SID(from) } Lag: {peer.NetworkLagMs}, Offset: {peer.ClockOffsetMs}");
                     foreach (P2pNetChannel ch in channelPeers.ChannelsForPeer(peer.p2pId))
                     {
                         if (ch.IsSyncingClocks)
@@ -569,7 +574,7 @@ namespace P2pNet
                } else {
                     // we're the recipient and it's done
                     peer.UpdateClockSync(payload.t2, payload.t3, msg.sentTime, msg.rcptTime);
-                    logger.Verbose($"Synced (rcp) {from} Lag: {peer.NetworkLagMs}, Offset: {peer.ClockOffsetMs}");
+                    logger.Verbose($"Synced (rcp) {SID(from)} Lag: {peer.NetworkLagMs}, Offset: {peer.ClockOffsetMs}");
                     // TODO: fix the following copypasta
                     foreach (P2pNetChannel ch in channelPeers.ChannelsForPeer(peer.p2pId))
                     {
@@ -578,7 +583,7 @@ namespace P2pNet
                     }
                 }
             } else {
-               logger.Warn($"Got sync from unknown peer: {from}. Ignoring.");
+               logger.Warn($"Got sync from unknown peer: {SID(from)}. Ignoring.");
             }
         }
 
