@@ -1,4 +1,5 @@
-﻿using System;
+﻿using System.Security.Authentication;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using Newtonsoft.Json;
@@ -13,6 +14,7 @@ namespace P2pNet
     {
         void OnPeerJoined(string channel, string p2pId, string helloData);
         void OnPeerMissing(string channel, string p2pId);
+        void OnPeerReturned(string channel, string p2pId);
         void OnPeerLeft(string channel, string p2pId);
         void OnPeerSync(string channel, string p2pId, long clockOffsetMs, long netLagMs);
         void OnClientMsg(string from, string toChan, long msSinceSent, string payload);
@@ -202,7 +204,6 @@ namespace P2pNet
             foreach (P2pNetChannelPeer chp in chpsThatHaveTimedOut)
             {
                 logger.Warn($"Loop - ChannelPeer {chp.P2pId}/{chp.ChannelId} timed out. Notifying client and removing peer.");
-                // TODO: Maybe add the idea of a "missing" chp status and set it?
                 client.OnPeerLeft( chp.ChannelId, chp.P2pId);
 
                 channelPeers.RemoveChannelPeer(chp);
@@ -356,6 +357,13 @@ namespace P2pNet
                 case P2pNetMessage.MsgSync:
                     _OnSyncMsg(msg.srcId, msg);
                     break;
+            }
+
+            // If the peer was missing, inform all channels that it's back.
+            foreach( P2pNetChannelPeer chp in channelPeers.ChannelPeersForPeer(msg.srcId) )
+            {
+                if (chp.IsMissing()) // Won;t be missing anymore after UnpdateLastHeardFrom() is called.
+                    client.OnPeerReturned(chp.ChannelId, chp.P2pId);
             }
 
             channelPeers.GetPeer(msg.srcId)?.UpdateLastHeardFrom(); // Don't need to do this in handlers
