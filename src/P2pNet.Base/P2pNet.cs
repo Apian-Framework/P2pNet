@@ -338,6 +338,14 @@ namespace P2pNet
             if (msg.srcId == localId)
                 return; // main channel messages from local peer will show up here
 
+            // If the peer was missing, inform all channels that it's back BEFORE handling the message
+            foreach( P2pNetChannelPeer chp in channelPeers.ChannelPeersForPeer(msg.srcId) )
+            {
+                if (chp.IsMissing()) // Won't be missing anymore after UnpdateLastHeardFrom() is called.
+                    client.OnPeerReturned(chp.ChannelId, chp.P2pId);
+            }
+            channelPeers.GetPeer(msg.srcId)?.UpdateLastHeardFrom(); // Don't need to do this in each handler
+
             // TODO: get rid of switch
             switch(msg.msgType)
             {
@@ -359,14 +367,6 @@ namespace P2pNet
                     break;
             }
 
-            // If the peer was missing, inform all channels that it's back.
-            foreach( P2pNetChannelPeer chp in channelPeers.ChannelPeersForPeer(msg.srcId) )
-            {
-                if (chp.IsMissing()) // Won;t be missing anymore after UnpdateLastHeardFrom() is called.
-                    client.OnPeerReturned(chp.ChannelId, chp.P2pId);
-            }
-
-            channelPeers.GetPeer(msg.srcId)?.UpdateLastHeardFrom(); // Don't need to do this in handlers
             // TODO: should there be a log message if the peer isn't found?
 
         }
