@@ -1,5 +1,4 @@
-﻿using System.Security.Authentication;
-using System;
+﻿using System;
 using System.Linq;
 using System.Collections.Generic;
 using Newtonsoft.Json;
@@ -190,14 +189,16 @@ namespace P2pNet
 
             // Regular timeouts
 
-            // Not long enough to be dropped - but long enough the app ought to know
-            List<P2pNetChannelPeer> chpsThatAreMissing = channelPeers.ChannelPeers.Values
-                .Where( chp => chp.IsMissing()).ToList();
-            foreach (P2pNetChannelPeer chp in chpsThatAreMissing)
+            // Not long enough to be dropped - but long enough the app ought to know.
+            // "Newly" means notification has not been sent to the client
+            List<P2pNetChannelPeer> chpsThatAreNewlyMissing = channelPeers.ChannelPeers.Values
+                .Where( chp => chp.IsNewlyMissing() ).ToList();
+
+              foreach (P2pNetChannelPeer chp in chpsThatAreNewlyMissing)
             {
                 logger.Warn($"Loop - ChannelPeer {SID(chp.P2pId)}/{chp.ChannelId} is missing. Notifying client.");
                 client.OnPeerMissing(chp.ChannelId, chp.P2pId);
-                chp.AlreadyMissing = true; // TODO: find a better way to keep from repeating these messages
+                chp.MissingNotificationSent = true; // TODO: find a better way to keep from repeating these messages?
             }
 
             // Really, really gone. Report 'em and remove 'em
@@ -340,14 +341,13 @@ namespace P2pNet
             if (msg.srcId == localId)
                 return; // main channel messages from local peer will show up here
 
-            // If the peer was missing, inform all channels that it's back BEFORE handling the message
+            // If the peer was missing on any channels, inform those channels that it's back BEFORE handling the message
             foreach( P2pNetChannelPeer chp in channelPeers.ChannelPeersForPeer(msg.srcId) )
             {
-                if (chp.IsMissing()) // Won't be missing anymore after UnpdateLastHeardFrom() is called.
-                {
-                    chp.AlreadyMissing = false; // TODO: fin a better way to handle only sending a missing notification once
+                if (chp.IsMissing()) // Won't be missing anymore after UnpdateLastHeardFrom() is called for the peer
                     client.OnPeerReturned(chp.ChannelId, chp.P2pId);
-                }
+                chp.MissingNotificationSent = false; // TODO: find a better way to handle only sending a missing notification once? Maybe?
+
             }
             channelPeers.GetPeer(msg.srcId)?.UpdateLastHeardFrom(); // Don't need to do this in each handler
 
@@ -564,7 +564,7 @@ namespace P2pNet
                     payload.t3 = msg.rcptTime;
                     _DoSend(from, P2pNetMessage.MsgSync, JsonConvert.SerializeObject(payload)); // send reply
                     peer.UpdateClockSync(payload.t0, payload.t1, payload.t2, payload.t3);
-                    logger.Verbose($"Synced (org) {SID(from) } Lag: {peer.NetworkLagMs}, Offset: {peer.ClockOffsetMs}");
+                    logger.Info($"Synced (org) {SID(from) } Lag: {peer.NetworkLagMs}, Offset: {peer.ClockOffsetMs}");
                     foreach (P2pNetChannel ch in channelPeers.ChannelsForPeer(peer.p2pId))
                     {
                         if (ch.IsSyncingClocks)
@@ -574,7 +574,7 @@ namespace P2pNet
                } else {
                     // we're the recipient and it's done
                     peer.UpdateClockSync(payload.t2, payload.t3, msg.sentTime, msg.rcptTime);
-                    logger.Verbose($"Synced (rcp) {SID(from)} Lag: {peer.NetworkLagMs}, Offset: {peer.ClockOffsetMs}");
+                    logger.Info($"Synced (rcp) {SID(from)} Lag: {peer.NetworkLagMs}, Offset: {peer.ClockOffsetMs}");
                     // TODO: fix the following copypasta
                     foreach (P2pNetChannel ch in channelPeers.ChannelsForPeer(peer.p2pId))
                     {

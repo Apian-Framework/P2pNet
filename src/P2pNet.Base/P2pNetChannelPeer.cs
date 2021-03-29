@@ -60,15 +60,19 @@ namespace P2pNet
                 && (P2pNetDateTime.NowMs - firstHelloSentTs > Channel.Info.dropMs);
         }
 
-        public bool AlreadyMissing {get; set;}
-
-        public bool IsMissing()
+        public bool IsMissing() // Keep in mind: "missing" is per-channel/peer
         {
             return HaveHeardFrom()
-                && !AlreadyMissing
                 && Channel.IsTrackingMemberShip  // must be tracking/pinging
                 && Channel.ReportsMissingPeers
                 && P2pNetDateTime.NowMs - Peer.LastHeardFromTs > Channel.Info.missingMs;
+        }
+
+        public bool MissingNotificationSent {get; set;}
+
+        public bool IsNewlyMissing()
+        {
+            return IsMissing() && !MissingNotificationSent;
         }
 
         public bool HasTimedOut()
@@ -223,6 +227,9 @@ namespace P2pNet
 
         public bool AddChannel(P2pNetChannelInfo chan, string localHelloData)
         {
+            if (localHelloData == null)
+                throw( new Exception($"P2pNetChannelPeer.AddChannel(): local channel HelloData cannot be null. Channel: {chan.id}"));
+
             if (!Channels.Keys.Contains(chan.id))
             {
                 Channels[chan.id] = new P2pNetChannel(chan, localHelloData);
