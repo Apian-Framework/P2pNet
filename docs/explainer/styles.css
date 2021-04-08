@@ -1,0 +1,83 @@
+
+@font-face {
+    font-family: "Virgil";
+    src: url("https://virgil.excalidraw.com/Virgil.woff2");
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+}
+
+img {
+    position: absolute;
+}
+
+.shuttle {
+    position: fixed;
+    z-index: 1000;
+    background-color: #e6c764;
+    font-size: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 0;
+}
+
+.shuttle div {
+    display: inline;
+}
+
+.shuttle div:hover {
+    background-color: #a9e664;
+}
+
+.main {
+    margin: 0;
+    padding: 0;
+    font-size: 14px;
+    font-family: "Virgil";
+}
+
+.slide {
+    position: absolute;
+    height: 900px;
+    width: 1600px;
+    text-align: center;
+}
+
+.slide-title {
+    visibility: hidden;
+    font-size: 3em;
+}
+
+.text-line {
+    text-align: left;
+    margin-left: 3em;
+    margin-top: 0em;
+    margin-bottom: 0em;
+    font-size: 2.2em;
+    visibility: hidden;
+}
+
+.text-line2 {
+    text-align: left;
+    margin-left: 5em;
+    margin-top: 0em;
+    margin-bottom: 0em;
+    font-size: 2.2em;
+    visibility: hidden;
+}
+
+.mv-1 {
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
+
+.bk-y {
+    background-color: #ffe88b;
+}
+
+.anim {
+    position: absolute;
+    visibility: hidden;
+}
