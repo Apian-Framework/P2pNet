@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+
+<head>
+  <meta charset="utf-8">
+
+  <title>Apian</title>
+  <link href="./styles.css" rel="stylesheet" />
+  <link href="./2-arch-slide.css" rel="stylesheet" />
+
+</head>
+<body class="bk-y">
+    <div id="main" class="main bk-y">
+
+        <div id="slide" class="slide bk-y"  >
+
+            <h1 class="slide-title" id="slide-title">Apian Peer Architecture</h1>
+            <div class="anim" id="app-frame">
+                <div class="anim" id="core-frame">
+                    <img class="anim" id="core-frame-img" src="img/core-frame.png"/>
+                    <img class="anim" id="core-logic" src="img/core-logic.png"/>
+                    <h1 class="slide-title" id="appcore-title">AppCore</h1>
+                    <img class="anim" id="core-work-arw" src="img/work-arw.png"/>
+                    <img class="anim" id="core-state" src="img/core-state.png"/>
+                    <img class="anim" id="core-state-hole" src="img/hole.png"/>
+                    <img class="anim" id="plane-rd-lt" src="img/plane-rd-lt.png"/>
+                    <img class="anim" id="plane-rd-rt" src="img/plane-rd-rt.png"/>
+                    <img class="anim" id="plane-bl-lt" src="img/plane-bl-lt.png"/>
+                    <img class="anim" id="plane-bl-rt" src="img/plane-bl-rt.png"/>
+                    <img class="anim" id="core-arw" src="img/core-arw.png"/>
+                </div>
+
+                <img class="anim" id="qmark" src="img/qmark.png"/>
+                <img class="anim" id="apian" src="img/apian.png"/>
+                <img class="anim" id="ap-core-arw" src="img/ap-core-arw.png"/>
+                <img class="anim" id="apian-work-arw" src="img/work-arw.png"/>
+
+                <img class="anim" id="app-code" src="img/app-code.png"/>
+                <img class="anim" id="the-ai" src="img/ai.png"/>
+                <img class="anim" id="app-eye" src="img/app-eye.png"/>
+                <img class="anim" id="app-ap-arw" src="img/app-ap-arw.png"/>
+                <img class="anim" id="app-core-arw" src="img/app-core-arw.png"/>
+                <img class="anim" id="app-work-arw" src="img/work-arw.png"/>
+
+                <img class="anim" id="screen" src="img/screen.png"/>
+                <img class="anim" id="app-scrn-arw" src="img/app-scrn-arw.png"/>
+
+                <img class="anim" id="player" src="img/plyr.png"/>
+                <img class="anim" id="plyr-app-arw" src="img/plyr-app-arw.png"/>
+
+                <img class="anim" id="big-red-x" src="img/big-red-x.png"/>
+
+                <img class="anim" id="spark1" src="img/msg.png" />
+                <img class="anim" id="cmd1" src="img/command.png" />
+                <img class="anim" id="req1" src="img/request.png" />
+
+            </div>
+
+        </div>
+
+        <div id="shuttle" class="shuttle" ">
+            <div id="rewind" onClick="rewind()">&nbsp;<<&nbsp;</div>
+            <div id="play" onClick="play_to_next()" >&nbsp;>&nbsp; </div>
+            <div id="fwd" onClick="fast_fwd()" >&nbsp;>>&nbsp;</div>
+        </div>
+
+    </div>
+
+    <script src="./gsap/minified/gsap.min.js"></script>
+
+    <script>
+
+        function coreWorkAnim() {
+            return gsap.timeline()
+            .fromTo("#core-work-arw", {scale: .1, autoAlpha: 0}, {duration: .25, scale: 1, autoAlpha: 1})
+            .fromTo("#core-work-arw", {rotate: 0}, {duration: 1, repeat: 1, rotate: 360, ease: "none"}, "<")
+            .to("#core-work-arw", {duration: .25, scale: .1, autoAlpha: 0});
+        }
+
+        function coreArrowAnim() {
+            return gsap.timeline()
+            .fromTo("#core-arw", {tscale: .1, autoAlpha: 0},  {duration: .25, transformOrigin: "left", scale: 1, autoAlpha: 1, ease: "none"})
+            .fromTo("#core-state-hole", { scale: .1, autoAlpha: 0}, {duration: .25, scale: 1, autoAlpha: 1, ease: "none"}, "<")
+            .to("#core-arw", {duration: .25, repeat: 5, yoyo: true, transformOrigin: "left", scaleX: 1.25, ease: "none"}, ">")
+            .to("#core-arw", {duration: .25, transformOrigin: "left", scale: .1, autoAlpha: 0, ease: "none"}, ">")
+            .to("#core-state-hole", {duration: .25, scale: .1, autoAlpha: 0, ease: "none"}, ">");
+        }
+
+        function planeMove1() {
+            return gsap.timeline()
+            .to("#plane-bl-rt", {duration: .5, x: 77})
+            .to("#plane-bl-rt", {duration: .5, rotation: -45});
+        }
+
+        function undoPlaneMove1() {
+            return gsap.timeline()
+            .to("#plane-bl-rt", {duration: .5, autoAlpha: 0})
+            .set("#plane-bl-rt", {duration: .5, x: 0, rotation: 0}, ">")
+            .to("#plane-bl-rt", {duration: .5, autoAlpha: 1},">");
+
+        }
+
+        function appWorkAnim() {
+            return gsap.timeline()
+            .fromTo("#app-work-arw", {scale: .1, autoAlpha: 0}, {duration: .25, scale: 1, autoAlpha: 1})
+            .fromTo("#app-work-arw", {rotate: 0}, {duration: 1, repeat: 1, rotate: 360, ease: "none"}, "<")
+            .to("#app-work-arw", {duration: .25, scale: .1, autoAlpha: 0});
+        }
+
+        function apianWorkAnim() {
+            return gsap.timeline()
+            .fromTo("#apian-work-arw", {scale: .1, autoAlpha: 0}, {duration: .25, scale: 1, autoAlpha: 1})
+            .fromTo("#apian-work-arw", {rotate: 0}, {duration: 1, repeat: 1, rotate: 360, ease: "none"}, "<")
+            .to("#apian-work-arw", {duration: .25, scale: .1, autoAlpha: 0});
+        }
+
+        function updateScreen() {
+            return gsap.timeline()
+            .to("#app-eye", {duration: .2, repeat: 4, yoyo: true, autoAlpha: 1},)
+            .add(appWorkAnim())
+            .to("#app-eye", {duration: .25, autoAlpha: 0},">")
+            .from("#app-scrn-arw", {duration: .5, autoAlpha: 0, scale: .1, transformOrigin: "bottom left"})
+            .fromTo("#screen", {autoAlpha: 0}, {duration: .25, autoAlpha: 1},">-.25")
+            .to("#screen", {duration: .2,  repeat: 3, yoyo: true, scale: 1.1, ease: "none"},">")
+
+            .to("#app-scrn-arw", {duration: .5, autoAlpha: 0},);
+        }
+
+        function inputFromUser() {
+            return gsap.timeline()
+                .fromTo("#plyr-app-arw", {autoAlpha: 0, scale: .1},{duration: 1, autoAlpha: 1, scale: 1, transformOrigin: "top right"})
+                .fromTo("#spark1",   {scale: .1, autoAlpha: 0}, {duration: .5, scale: 1, autoAlpha: 1},">")
+                .fromTo("#spark1", {x: 760, y:480}, {x: 380, y:520, duration: 1}, "<")
+                .to("#plyr-app-arw", {duration: 1, autoAlpha: 0, scale: .1, transformOrigin: "bottom left"},">");
+        }
+
+        var tLine = gsap.timeline();
+        tLine.addLabel("titleIn");
+        tLine.to("#slide-title", {duration: 1, autoAlpha: 1});
+        tLine.from("#slide-title", {duration: .5, y: -50}, "<");
+
+        tLine.addLabel("coreState");
+        tLine.to("#app-frame", {duration: 0, autoAlpha: 1, backgroundColor: "transparent"});
+        tLine.to("#core-frame", {duration: 0, autoAlpha: 1, backgroundColor:"transparent"}, "<");
+        tLine.from("#core-state", {duration: 1, rotation: -360, scale: .1, autoAlpha: 0} , "<");
+        tLine.to(["#plane-rd-lt", "#plane-bl-lt", "#plane-rd-rt", "#plane-bl-rt"], {duration: .5, stagger: .25, autoAlpha: 1} , ">");
+
+        tLine.addLabel("coreLogic");
+        tLine.to("#core-frame", {duration: 1, backgroundColor: "#fdf3c9"});
+        tLine.to("#core-frame-img", {duration: 1, autoAlpha: 1}, "<");
+        tLine.from("#core-logic", {duration: 1, scale: .1, autoAlpha: 0, ease: "bounce"}, "<");
+        tLine.to("#app-frame", {duration: 1, x:140}, "<");
+
+        tLine.addLabel("calledAppCore");
+        tLine.to("#appcore-title", {duration: 1, autoAlpha: 1});
+
+        tLine.addLabel("stateChange");
+        tLine.from("#qmark",   {duration: .5, scale: .1, autoAlpha: 0});
+        tLine.from("#ap-core-arw", {duration: .5, transformOrigin: "bottom", scale: .1, autoAlpha: 0, ease: "none"}, ">-.5");
+        tLine.set("#cmd1", {x: 125, y:550});
+        tLine.from("#cmd1",   {duration: .5, scale: .1, autoAlpha: 0}, ">");
+        // SHould this be a func?
+        tLine.to("#cmd1", {x: 125, y:150, duration: 1}, "<");
+        tLine.add(coreWorkAnim());
+        tLine.add(coreArrowAnim(), ">-.25")
+        tLine.add(planeMove1(), "<+.25");
+        tLine.to("#cmd1", {duration: .5, autoAlpha: 0}, "<");
+
+        tLine.addLabel("stateChange-b");
+        tLine.to("#qmark", {duration: .5, autoAlpha: 0});
+        tLine.to("#ap-core-arw", {duration: .5, autoAlpha: 0}, "<");
+        tLine.add(undoPlaneMove1(), "<");
+
+        tLine.addLabel("AppCode");
+        tLine.to("#core-frame", {duration: 1, backgroundColor: "#ffffff"},);
+        tLine.to("#app-frame", {duration: 1, backgroundColor: "#fdf3c9"}, "<");
+        tLine.from("#app-code", {duration: 1, scale: .1, autoAlpha: 0, ease: "bounce"}, "<");
+
+        tLine.addLabel("StateDisplay");
+        tLine.add(updateScreen());
+
+        tLine.addLabel("UserInput");
+        tLine.to("#player", {duration: 1, autoAlpha: 1});
+        tLine.add(inputFromUser());
+
+        tLine.addLabel("CommandFromApp");
+        tLine.set("#cmd1", {x: 380, y: 520});
+        tLine.add(appWorkAnim());
+        tLine.fromTo("#cmd1", {autoAlpha: 0}, {autoAlpha:1, duration: 1}, "<");
+
+        tLine.from("#app-core-arw", {duration: .5, autoAlpha: 0, scale: .1, transformOrigin: "bottom right"}, ">");
+        tLine.to("#cmd1", {x: 125, y:150, duration: 1}, ">");
+        tLine.to("#spark1", {x: 125, y:150, duration: 1}, "<");
+        tLine.add(coreWorkAnim());
+        tLine.to("#cmd1", {duration: 1, autoAlpha: 0}, "<");
+        tLine.add(coreArrowAnim(), ">-.25")
+        tLine.add(planeMove1(), "<+.25");
+        tLine.to("#spark1", {duration: 1, autoAlpha: 0}, "<+.5");
+
+        tLine.addLabel("Nope");
+        tLine.from(["#big-red-x"], {duration: .25, rotation: -360, scale: .1, autoAlpha: 0});
+
+        tLine.addLabel("Moving on");
+        tLine.to("#app-core-arw", {duration: .5, autoAlpha: 0});
+        tLine.to("#big-red-x", {duration: .5, autoAlpha: 0});
+        tLine.add(undoPlaneMove1(), "<");
+
+        tLine.addLabel("showApian");
+        tLine.from(["#apian"], {duration: 1, rotation: -360, scale: .1, autoAlpha: 0});
+
+        tLine.addLabel("userInputAgain");
+        tLine.add(inputFromUser());
+        tLine.set("#req1", {x: 380, y: 520});
+        tLine.add(appWorkAnim());
+        tLine.fromTo("#req1", {autoAlpha: 0}, {autoAlpha:1, duration: 1}, "<");
+
+        tLine.addLabel("requestToApian");
+        tLine.fromTo("#app-ap-arw", {autoAlpha: 0, scale: .1, }, { duration: .5, autoAlpha: 1, scale: 1, transformOrigin: "right"});
+        tLine.fromTo("#req1", {x: 380, y: 520}, {x: 125, y: 500, duration: .5});
+        tLine.fromTo("#spark1", {x: 380, y: 520}, {x: 125, y: 500, duration: .5}, "<");
+        tLine.to("#app-ap-arw", { duration: .5, autoAlpha: 0, scale: .1, transformOrigin: "left"});
+        tLine.set("#cmd1", {x: 125, y: 500});
+        tLine.add(apianWorkAnim());
+        tLine.to("#req1", {autoAlpha: 0, duration: 1}, "<");
+        tLine.fromTo("#cmd1", {autoAlpha: 0}, {autoAlpha:1, duration: 1}, "<");
+
+        tLine.addLabel("apianMakesWork");
+        tLine.fromTo("#ap-core-arw", {autoAlpha: 0, scale: .1},{duration: .5, autoAlpha: 1, scale: 1, transformOrigin: "bottom"});
+        tLine.to("#cmd1", {x: 125, y:150, duration: 1});
+        tLine.to("#spark1", {x: 125, y:150, duration: 1},"<");
+        tLine.to("#ap-core-arw", {autoAlpha: 0, scale: .1, transformOrigin: "top"});
+        tLine.add(coreWorkAnim());
+        tLine.to("#cmd1", {duration: 1, autoAlpha: 0}, "<");
+        tLine.add(coreArrowAnim(), ">-.25")
+        tLine.add(planeMove1(), "<+.25");
+        tLine.to("#spark1", {duration: 1, autoAlpha: 0}, "<+.5");
+
+        tLine.addLabel("whyNotAnAI");
+        tLine.from("#the-ai", {duration: .5, autoAlpha:0});
+        tLine.add(undoPlaneMove1(), "<");
+
+        tLine.addLabel("startItWithAI");
+        tLine.set("#spark1", {x: 520, y: 555});
+        tLine.to("#spark1",  {duration: .5, scale: 1, autoAlpha: 1});
+
+        tLine.addLabel("onceAgain");
+        tLine.to("#spark1", {x: 380, y:520, duration: 1});
+        tLine.set("#req1", {x: 380, y: 520});
+        tLine.add(appWorkAnim());
+        tLine.fromTo("#req1", {autoAlpha: 0}, {autoAlpha:1, duration: 1}, "<");
+        tLine.fromTo("#app-ap-arw", {autoAlpha: 0, scale: .1, }, { duration: .5, autoAlpha: 1, scale: 1, transformOrigin: "right"});
+        tLine.fromTo("#req1", {x: 380, y: 520}, {x: 125, y: 500, duration: .5});
+        tLine.fromTo("#spark1", {x: 380, y: 520}, {x: 125, y: 500, duration: .5},"<");
+        tLine.to("#app-ap-arw", { duration: .5, autoAlpha: 0, scale: .1, transformOrigin: "left"});
+        tLine.set("#cmd1", {x: 125, y: 500});
+        tLine.add(apianWorkAnim());
+        tLine.to("#req1", {autoAlpha: 0, duration: 1}, "<");
+        tLine.fromTo("#cmd1", {autoAlpha: 0}, {autoAlpha:1, duration: 1}, "<");
+        tLine.fromTo("#ap-core-arw", {autoAlpha: 0, scale: .1},{duration: .5, autoAlpha: 1, scale: 1, transformOrigin: "bottom"});
+        tLine.to("#cmd1", {x: 125, y:150, duration: 1});
+        tLine.to("#spark1", {x: 125, y:150, duration: 1},"<");
+        tLine.to("#ap-core-arw", {autoAlpha: 0, scale: .1, transformOrigin: "top"});
+        tLine.add(coreWorkAnim());
+        tLine.to("#cmd1", {duration: 1, autoAlpha: 0}, "<");
+        tLine.add(coreArrowAnim(), ">-.25")
+        tLine.add(planeMove1(), "<+.25");
+        tLine.to("#spark1", {duration: 1, autoAlpha: 0}, "<+.5");
+
+        tLine.pause();
+        play_to_next();
+
+        window.onresize = sizeSlideToWindow;
+        sizeSlideToWindow();
+
+        var paused = false;
+
+        function fast_fwd() {
+            tLine.timeScale(5).tweenTo( tLine.nextLabel(), {onComplete: () => tLine.timeScale(1)} );
+        }
+
+        function play_to_next() {
+            tLine.tweenTo( tLine.nextLabel() );
+        }
+
+        function rewind() {
+            tLine.timeScale(5).tweenTo( tLine.previousLabel(), {onComplete: () => tLine.timeScale(1)} );
+        }
+
+        function sizeSlideToWindow()
+        {
+            baseW = 1600;
+            baseH = 900;
+            scaleX = window.innerWidth / baseW;
+            scaleY = window.innerHeight / baseH;
+            newScale = (scaleX < scaleY) ? scaleX : scaleY;
+            gsap.set("#slide", {x: 0, y: 0, scale: newScale, transformOrigin: "top left"});
+        }
+
+
+    </script>
+
+</body>
+</html>
