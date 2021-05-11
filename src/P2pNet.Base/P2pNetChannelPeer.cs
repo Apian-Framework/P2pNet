@@ -194,7 +194,6 @@ namespace P2pNet
         {
             if (IsKnownPeer(peerId))
             {
-                // FIXME: remove any P2pNetChannelPeers &&&&&&
                 List<P2pNetChannelPeer> cpsToRemove = ChannelPeers.Values.Where(cp => cp.Peer.p2pId == peerId).ToList();
                 foreach (P2pNetChannelPeer c in cpsToRemove)
                     RemoveChannelPeer(c);

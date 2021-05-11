@@ -91,15 +91,6 @@ namespace P2pNet
 
     public abstract class P2pNetBase : IP2pNet
     {
-        // FIXME: migrate this data as default to wherever it is supposed to go, then delete this comment clock
-        // public static Dictionary<string, string> defaultConfig = new Dictionary<string, string>()
-        // {
-        //     {"pingMs", "7000"},
-        //     {"dropMs", "15000"},
-        //     {"syncMs", "30000"}  // clock sync
-        // };
-        //public Dictionary<string, string> config;
-
         protected string localId;
         protected IP2pNetClient client;
         protected string connectionStr; // Transport-dependent format
@@ -497,11 +488,7 @@ namespace P2pNet
 
         protected void _SendPing(string chanId)
         {
-            // FIXME: check about this "everyone" stuff. Not sure if it's a thing anymore?
-            // FIXME: actually: check about pinging in general: should we be doing something akin to what we used to do:
-            //     if there were more than one (or 2) peers that needed a ping we bcast it...
-            // Would that make sense with ChannelPeers, too?
-
+            // Read the calling code to see how whether and whom to ping works.
             string toWhom = channelPeers.IsMainChannel(chanId) ? "Everyone" : SID(chanId);
             logger.Verbose(string.Format($"_SendPing() - Sending to {toWhom} on ch: {chanId}" ));
             _DoSend(chanId, P2pNetMessage.MsgPing, null);
