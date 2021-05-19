@@ -5,6 +5,7 @@ env:
   SUBPROJECT: P2pNet.Redis
 
 on:
+  workflow_dispatch:  
   push:
     branches: [ master ]
     paths:
