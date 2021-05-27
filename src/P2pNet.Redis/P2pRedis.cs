@@ -10,21 +10,15 @@ namespace P2pNet
     {
         private readonly object queueLock = new object();
         List<P2pNetMessage> messageQueue;
-        public IConnectionMultiplexer RedisCon {get; private set; } = null;
+        public IConnectionMultiplexer connectionMux {get; private set; } = null;
+        protected Func<string, IConnectionMultiplexer> customConnectFactory;
+        protected string connectionString;
 
-        public P2pRedis(IP2pNetClient _client, string _connectionString, Func<string, IConnectionMultiplexer> muxConnectFactory=null) : base(_client, _connectionString)
+        public P2pRedis(IP2pNetClient _client, string _connectionString, Func<string, IConnectionMultiplexer> _muxConnectFactory=null) : base(_client, _connectionString)
         {
             // valid connection string is typically: "<host>,password=<password>"
-            try {
-                // TODO: &&&&& DO NOT CONNECT in ctor (remember: ctors should JUST construct. Failure should only be memory-related)
-                RedisCon =  muxConnectFactory != null ? muxConnectFactory(_connectionString) : ConnectionMultiplexer.Connect(_connectionString); // Use the passed-in test mux instance if supplied
-            } catch (StackExchange.Redis.RedisConnectionException ex) {
-                logger.Debug(string.Format("P2pRedis Ctor: StackExchange.Redis.RedisConnectionException:{0}", ex.Message));
-                throw( new Exception($"{GuessRedisProblem(ex.Message)}"));
-            } catch (System.ArgumentException ex) {
-                logger.Debug(string.Format("P2pRedis Ctor: System.ArgumentException:{0}", ex.Message));
-                throw( new Exception($"Bad connection string: {ex.Message}"));
-            }
+            customConnectFactory =  _muxConnectFactory;
+            connectionString = _connectionString;
             messageQueue = new List<P2pNetMessage>();
         }
 
@@ -43,7 +37,7 @@ namespace P2pNet
 
         protected override void _Poll()
         {
-            if (messageQueue.Count > 0)
+            if (messageQueue?.Count > 0)
             {
                 List<P2pNetMessage> prevMessageQueue;
                 lock(queueLock)
@@ -59,22 +53,34 @@ namespace P2pNet
             }
         }
 
-        protected override void _Join(P2pNetChannelInfo mainChannel)
+        protected override void _Join(P2pNetChannelInfo mainChannel, string localPeerId)
         {
-            // Doesn't do anything
+
+            try {
+                connectionMux =  customConnectFactory != null ? customConnectFactory(connectionString) : ConnectionMultiplexer.Connect(connectionString); // Use the passed-in test mux instance if supplied
+            } catch (StackExchange.Redis.RedisConnectionException ex) {
+                logger.Debug(string.Format("P2pRedis Ctor: StackExchange.Redis.RedisConnectionException:{0}", ex.Message));
+                throw( new Exception($"{GuessRedisProblem(ex.Message)}"));
+            } catch (System.ArgumentException ex) {
+                logger.Debug(string.Format("P2pRedis Ctor: System.ArgumentException:{0}", ex.Message));
+                throw( new Exception($"Bad connection string: {ex.Message}"));
+            }
+            _Listen(localPeerId);
         }
 
         protected override void _Leave()
         {
-            // reset. Seems heavy handed
-            RedisCon.Close();
-            RedisCon = ConnectionMultiplexer.Connect(connectionStr);
+            connectionMux.Close();
+            connectionMux =null;
+            customConnectFactory = null;
+            connectionString = null;
+            messageQueue = null;
         }
 
         protected override bool _Send(P2pNetMessage msg)
         {
             string msgJSON = JsonConvert.SerializeObject(msg);
-            RedisCon.GetSubscriber().PublishAsync(msg.dstChannel, msgJSON);
+            connectionMux.GetSubscriber().PublishAsync(msg.dstChannel, msgJSON);
             return true;
         }
 
@@ -86,7 +92,7 @@ namespace P2pNet
 
         protected  void _ListenConcurrent(string channel)
         {
-            RedisCon.GetSubscriber().Subscribe(channel, (rcvChannel, msgJSON) => {
+            connectionMux.GetSubscriber().Subscribe(channel, (rcvChannel, msgJSON) => {
                 P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(msgJSON);
                 _AddReceiptTimestamp(msg);
                 lock(queueLock)
@@ -96,7 +102,7 @@ namespace P2pNet
 
         protected void _ListenSequential(string channel)
         {
-            var rcvChannel = RedisCon.GetSubscriber().Subscribe(channel);
+            var rcvChannel = connectionMux.GetSubscriber().Subscribe(channel);
 
             rcvChannel.OnMessage(channelMsg =>
             {
@@ -109,7 +115,7 @@ namespace P2pNet
 
         protected override void _StopListening(string channel)
         {
-            RedisCon.GetSubscriber().Unsubscribe(channel);
+            connectionMux.GetSubscriber().Unsubscribe(channel);
         }
 
         protected override string _NewP2pId()

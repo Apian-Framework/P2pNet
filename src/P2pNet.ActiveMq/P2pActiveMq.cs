@@ -24,8 +24,6 @@ namespace P2pNet
             string[] parts = _connectionString.Split(new string[]{","},StringSplitOptions.None);
             IConnectionFactory factory = new ConnectionFactory(parts[2]);
             connection = factory.CreateConnection(parts[0], parts[1]);
-            session = connection.CreateSession();
-            connection.Start();
         }
 
         protected override void _Poll()
@@ -46,9 +44,11 @@ namespace P2pNet
             }
         }
 
-        protected override void _Join(P2pNetChannelInfo mainChannel)
+        protected override void _Join(P2pNetChannelInfo mainChannel, string localId)
         {
-            // Nothing to do
+            session = connection.CreateSession();
+            connection.Start();
+            _Listen(localId);
         }
 
         protected void _OnMessage(IMessage receivedMsg) // for all topics

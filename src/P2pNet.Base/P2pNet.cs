@@ -125,7 +125,7 @@ namespace P2pNet
             // on it from a peer that is already in the channelPeers list (for a "real" channel)
             // then that peer it will get its "heardFrom" property updated.
             _InitJoinParams();
-            _Listen(localId); // Listen, but don;t set up a proper "channel"
+            _Join(mainChannelInfo, localId); // connects to network and listens on localId
             _AddChannel(mainChannelInfo, localHelloData ); // Set up channel AND listen
             channelPeers.SetMainChannel( channelPeers.GetChannel(mainChannelInfo.id));
         }
@@ -134,7 +134,7 @@ namespace P2pNet
         {
             _SendBye(channelPeers.MainChannel.Id);
             _Leave();
-            _InitJoinParams();
+            _InitJoinParams(); // resets
         }
 
         public List<string> GetPeerIds() => channelPeers.GetPeerIds();
@@ -302,7 +302,7 @@ namespace P2pNet
 
         // Implementation methods
         protected abstract void _Poll();
-        protected abstract void _Join(P2pNetChannelInfo mainChannel);
+        protected abstract void _Join(P2pNetChannelInfo mainChannel, string localId);
         protected abstract bool _Send(P2pNetMessage msg);
         protected abstract void _Listen(string channel);
         protected abstract void _StopListening(string channel);
