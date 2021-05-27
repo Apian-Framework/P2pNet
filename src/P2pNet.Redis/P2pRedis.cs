@@ -29,7 +29,7 @@ namespace P2pNet
             // of problem has occurred.
             string msg = exMsg;
             if (exMsg.Contains("authentication"))
-                msg = "Redis suthentication failure";
+                msg = "Redis authentication failure";
             if (exMsg.Contains("UnableToConnect on"))
                 msg = "Unable to connect to Redis host"; // TODO: parse the bad host out of the message and include it
             return msg;

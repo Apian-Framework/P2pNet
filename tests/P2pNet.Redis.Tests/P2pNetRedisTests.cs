@@ -47,7 +47,7 @@ namespace P2pNetTests
                 + "newsweasel.com:6379/Interactive, Flushed/ComputeResult, last: ECHO, origin: SetResult, outstanding: 0, "
                 + "last-read: 0s ago, last-write: 0s ago, keep-alive: 60s, state: ConnectedEstablishing, mgr: 5 of 10 available, "
                 + "last-heartbeat: never, global: 0s ago, v: 2.0.601.3402:",
-                "Redis suthentication failure") },
+                "Redis authentication failure") },
             { kBadConnectionString_BadString, new ConnectionStringFailure( typeof(System.ArgumentException),
                 ConnectionFailureType.None,
                 "Keyword 'foobar' is not supported",
@@ -57,8 +57,18 @@ namespace P2pNetTests
 
         IConnectionMultiplexer MockMuxConnectFactory(string connString)
         {
+            // Crap! ChannelMessageQueue has no interface...
+            // and it's is sealed, so you can't mock it as a class...
+            // And it doesn;t have a public ctor... which would be  bad idea anyway.
+            // sheesh
+            //ChannelMessageQueue mcq = new ChannelMessageQueue();
+
+            Mock<ISubscriber> mockSub = new Mock<ISubscriber>();
+            mockSub.Setup(s =>  s.Subscribe(It.IsAny<RedisChannel>(), CommandFlags.None)).Returns((ChannelMessageQueue)null) ;
+            // the null return causes join to fail.
+
             mockMux = new Mock<IConnectionMultiplexer>(MockBehavior.Strict);
-            //mockCli.Setup(p => p.GetDecision(creditScore)).Returns(expectedResult);
+            mockMux.Setup(m => m.GetSubscriber(null)).Returns(mockSub.Object);
 
             if (ConnectFailures.ContainsKey(connString))
             {
@@ -74,7 +84,7 @@ namespace P2pNetTests
         }
 
         [Test]
-        public void P2pNetRedis_Ctor_GoodConnectionString()
+        public void P2pNetRedis_Ctor()
         {
             mockCli = new Mock<IP2pNetClient>(MockBehavior.Strict);
             // public P2pRedis(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null, muxInstance)
@@ -86,34 +96,33 @@ namespace P2pNetTests
         [TestCase(kBadConnectionString_AuthFailure)]
         [TestCase(kBadConnectionString_BadString)]
         [TestCase(kBadConnectionStr_BadHost)]
-        public void P2pNetRedis_Ctor_BadConnectionString(string connString)
+        public void P2pNetRedis_Join_BadConnectionString(string connString)
         {
             mockCli = new Mock<IP2pNetClient>(MockBehavior.Strict);
             ConnectionStringFailure csf = ConnectFailures[connString];
             // public P2pRedis(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null, muxInstance)
-            Exception ex = Assert.Throws(typeof(Exception), () => new P2pRedis(mockCli.Object,connString, MockMuxConnectFactory));
+            P2pRedis p2p = new P2pRedis(mockCli.Object,connString, MockMuxConnectFactory);
+            Exception ex = Assert.Throws(typeof(Exception), () => p2p.Join(null, "122345"));
             Assert.That(ex.Message, Is.EqualTo(csf.p2pNetExceptionMsg));
         }
 
         [Test]
-        public void P2pNetRedis_get_RedisCon_Works()
+        public void P2pNetRedis_Join_Works()
         {
-            mockCli = new Mock<IP2pNetClient>(MockBehavior.Strict);
+            mockCli = new Mock<IP2pNetClient>();
+
+            P2pNetChannelInfo ci = new P2pNetChannelInfo("TestChan", "TestChanId", 10000);
+
             P2pRedis p2p =  new P2pRedis(mockCli.Object,kGoodConnectionStr, MockMuxConnectFactory);
-            Assert.That(p2p, Is.Not.Null);
-            Assert.That(p2p.RedisCon, Is.Not.Null);
-            object result = p2p.RedisCon;
-            Assert.That(result, Is.InstanceOf(typeof(IConnectionMultiplexer)));
+            Assert.That(ci, Is.Not.Null);
+
+            // Have no idea how to test this easily (or even sorta easily)
+            // p2p.Join(ci,  "122345");
+            // Assert.That(p2p.connectionMux, Is.Not.Null);
+            // object result = p2p.connectionMux;
+            // Assert.That(result, Is.InstanceOf(typeof(IConnectionMultiplexer)));
         }
 
-        // [Test]
-        // public void P2pNetRedis_Ctor_GoodConnectionString()
-        // {
-        //     mockCli = new Mock<IP2pNetClient>(MockBehavior.Strict);
-        //     // public P2pRedis(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null, muxInstance)
-        //     P2pRedis p2p =  new P2pRedis(mockCli.Object,kGoodConnectionStr, null, MockMuxConnectFactory);
-        //     Assert.That(p2p, Is.Not.Null);
-        // }
     }
 
 }
