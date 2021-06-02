@@ -44,11 +44,12 @@ namespace P2pNet
             }
         }
 
-        protected override void _Join(P2pNetChannelInfo mainChannel, string localId)
+        protected override void _Join(P2pNetChannelInfo mainChannel, string localId, string localHelloData)
         {
             session = connection.CreateSession();
             connection.Start();
             _Listen(localId);
+            _OnNetworkJoined(mainChannel, localHelloData);
         }
 
         protected void _OnMessage(IMessage receivedMsg) // for all topics
@@ -66,15 +67,13 @@ namespace P2pNet
             connection.Close();
         }
 
-        protected override bool _Send(P2pNetMessage msg)
+        protected override void _Send(P2pNetMessage msg)
         {
             IDestination dest = session.GetTopic(msg.dstChannel);
             IMessageProducer prod = session.CreateProducer(dest);
             prod.DeliveryMode = MsgDeliveryMode.NonPersistent;
             string msgJSON = JsonConvert.SerializeObject(msg);
             prod.Send(session.CreateTextMessage(msgJSON));
-
-            return true;
         }
 
         protected override void _Listen(string channel)

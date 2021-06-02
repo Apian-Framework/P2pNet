@@ -53,7 +53,7 @@ namespace P2pNet
             }
         }
 
-        protected override void _Join(P2pNetChannelInfo mainChannel, string localPeerId)
+        protected override void _Join(P2pNetChannelInfo mainChannel, string localPeerId, string localHelloData)
         {
 
             try {
@@ -66,6 +66,7 @@ namespace P2pNet
                 throw( new Exception($"Bad connection string: {ex.Message}"));
             }
             _Listen(localPeerId);
+            _OnNetworkJoined(mainChannel, localHelloData);
         }
 
         protected override void _Leave()
@@ -77,11 +78,10 @@ namespace P2pNet
             messageQueue = null;
         }
 
-        protected override bool _Send(P2pNetMessage msg)
+        protected override void _Send(P2pNetMessage msg)
         {
             string msgJSON = JsonConvert.SerializeObject(msg);
             connectionMux.GetSubscriber().PublishAsync(msg.dstChannel, msgJSON);
-            return true;
         }
 
         protected override void _Listen(string channel)

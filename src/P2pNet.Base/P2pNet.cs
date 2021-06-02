@@ -1,4 +1,4 @@
-﻿using System;
+﻿using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Generic;
 using Newtonsoft.Json;
@@ -125,9 +125,19 @@ namespace P2pNet
             // on it from a peer that is already in the channelPeers list (for a "real" channel)
             // then that peer it will get its "heardFrom" property updated.
             _InitJoinParams();
-            _Join(mainChannelInfo, localId); // connects to network and listens on localId
+            _Join(mainChannelInfo, localId, localHelloData); // connects to network and listens on localId
+        }
+
+        protected void _OnNetworkJoined(P2pNetChannelInfo mainChannelInfo, string localHelloData)
+        {
+            // called back from _Join() when it is done - which might be async
+            // TODO: decide if this is just stupid
+            // For some reason I'm trying to keep async/awai out of this so maybe it can be used
+            // as an example for porting to languages that son;t support it - THAT's what might be
+            // dumb.
             _AddChannel(mainChannelInfo, localHelloData ); // Set up channel AND listen
             channelPeers.SetMainChannel( channelPeers.GetChannel(mainChannelInfo.id));
+            client.OnPeerJoined( mainChannelInfo.id, localId, localHelloData);
         }
 
         public void Leave()
@@ -302,8 +312,8 @@ namespace P2pNet
 
         // Implementation methods
         protected abstract void _Poll();
-        protected abstract void _Join(P2pNetChannelInfo mainChannel, string localId);
-        protected abstract bool _Send(P2pNetMessage msg);
+        protected abstract void _Join(P2pNetChannelInfo mainChannel, string localId, string localHelloData);
+        protected abstract void _Send(P2pNetMessage msg);
         protected abstract void _Listen(string channel);
         protected abstract void _StopListening(string channel);
         protected abstract void _Leave();
@@ -318,8 +328,8 @@ namespace P2pNet
             long msgId = _NextMsgId(dstChan);
             P2pNetMessage p2pMsg = new P2pNetMessage(dstChan, localId, msgId, msgType, payload);
             p2pMsg.sentTime = P2pNetDateTime.NowMs; // should not happen in ctor
-            if (_Send(p2pMsg))
-                _UpdateSendStats(dstChan, msgId);
+            _Send(p2pMsg);
+            _UpdateSendStats(dstChan, msgId);
         }
 
         protected void _OnReceivedNetMessage(string msgChannel, P2pNetMessage msg)

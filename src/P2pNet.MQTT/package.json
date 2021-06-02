@@ -1,9 +1,9 @@
 {
-  "name": "com.apian-framework.p2pnet.redis",
-  "displayName": "P2pNet.Redis",
+  "name": "com.apian-framework.p2pnet.mqtt",
+  "displayName": "P2pNet.Mqtt",
   "version": "1.0.0",
   "unity": "2018.1",
-  "description": "P2pNet implmentation using Redis pub/sub",
+  "description": "P2pNet implmentation using MQTTnet",
   "keywords": [
     "network",
     "unity"

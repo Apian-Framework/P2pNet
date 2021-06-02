@@ -34,9 +34,11 @@ namespace P2pNet
             }
         }
 
-        protected override void _Join(P2pNetChannelInfo mainChannel, string localPeerId)
+        protected override void _Join(P2pNetChannelInfo mainChannel, string localPeerId, string localHelloData)
         {
             _Listen(localPeerId);
+            _OnNetworkJoined(mainChannel, localHelloData);
+
         }
 
         protected override void _Leave()
@@ -44,14 +46,13 @@ namespace P2pNet
             messageQueue = new List<P2pNetMessage>();
             listeningTo = new List<string>();
         }
-        protected override bool _Send(P2pNetMessage msg)
+        protected override void _Send(P2pNetMessage msg)
         {
             if (listeningTo.Contains(msg.dstChannel))
             {
                 _AddReceiptTimestamp(msg);
                 messageQueue.Add(msg);
             }
-            return true;
         }
 
         protected override void _Listen(string channel)
