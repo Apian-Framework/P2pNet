@@ -352,6 +352,13 @@ namespace P2pNet
             }
             channelPeers.GetPeer(msg.srcId)?.UpdateLastHeardFrom(); // Don't need to do this in each handler
 
+            P2pNetChannelPeer cp = channelPeers.GetChannelPeer(msgChannel, msg.srcId);
+            if (cp?.ValidateMsgId(msg.msgId) == false)
+            {
+                logger.Warn($"_OnReceivedNetMessage(): Msg id #{msg.msgId} too early. Expecting #{cp.lastMsgId}");
+            }
+
+
             // TODO: get rid of switch
             switch(msg.msgType)
             {

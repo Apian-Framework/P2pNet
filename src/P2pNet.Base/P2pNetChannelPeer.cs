@@ -23,7 +23,7 @@ namespace P2pNet
         protected long firstHelloSentTs = 0; // when did we FIRST send a hello/hello req? (for knowing when to give up)
         // TODO: need to set the above either in the constructor (if it includes hello data)
         // or when we send a hello to a peer that has firstHelloSentTs == 0;
-        protected long lastMsgId = 0; // Last msg rcvd from this channelPeer. Each tags each mesage with a serial # (nextMsgId in P2PNetBase)
+        public long lastMsgId = 0; // Last msg rcvd from this channelPeer. Each tags each mesage with a serial # (nextMsgId in P2PNetBase)
 
         public P2pNetChannelPeer(P2pNetPeer peer, P2pNetChannel channel)
         {
@@ -90,7 +90,7 @@ namespace P2pNet
 
         public bool ValidateMsgId(long msgId)
         {
-            // reject any new msg w/ id <= what we have already seen
+            // fail any new msg w/ id <= what we have already seen
             if (msgId <= lastMsgId)
                 return false;
             lastMsgId = msgId;
