@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using MQTTnet;
 using MQTTnet.Client;
 using MQTTnet.Client.Subscribing;
@@ -11,16 +12,32 @@ using Newtonsoft.Json;
 
 namespace P2pNet
 {
+    // MQTTnet only has async methods. Mostly this is ok, but the async send wants for you to `await` it - which involves waiting
+    // for the ack from the server. If you don't await - and instead just fire-and-forget - you sometines end up with out-of-order
+    // messages - which is supposed to be part of what the MQTT protocol provides at all QOS levels.
+
+    // SO anyway - this means that application programmers have to deal with message ordering/trhead management.
+    //THat kinda - well - isn't how I think it oughta be. :-)
+
+    // I *think* it's the send, and not receive... let's see
+
+
     public class P2pMqtt : P2pNetBase
     {
         private readonly object queueLock = new object();
-        List<P2pNetMessage> messageQueue;
-        MQTTnet.Client.IMqttClient mqttClient;
-        Dictionary<string,string> connectOpts;
+        private Queue<P2pNetMessage> rcvMessageQueue;
+
+        private ConcurrentQueue<MqttApplicationMessage> sendMessageQueue;
+        private ManualResetEventSlim sendQueueReset;
+
+        private MQTTnet.Client.IMqttClient mqttClient;
+        private Dictionary<string,string> connectOpts;
 
         public P2pMqtt(IP2pNetClient _client, string _connectionString) : base(_client, _connectionString)
         {
-            messageQueue = new List<P2pNetMessage>();
+            rcvMessageQueue = new Queue<P2pNetMessage>();
+            sendMessageQueue = new ConcurrentQueue<MqttApplicationMessage>(); // unbounded
+            sendQueueReset = new ManualResetEventSlim(false);
 
             // {"host":"<hostname>"}
             connectOpts = JsonConvert.DeserializeObject<Dictionary<string,string>>(_connectionString);
@@ -33,13 +50,14 @@ namespace P2pNet
 
         protected override void _Poll()
         {
-            if (messageQueue.Count > 0)
+            // receive polling
+            if (rcvMessageQueue.Count > 0)
             {
-                List<P2pNetMessage> prevMessageQueue;
+                Queue<P2pNetMessage> prevMessageQueue;
                 lock(queueLock)
                 {
-                    prevMessageQueue = messageQueue;
-                    messageQueue = new List<P2pNetMessage>();
+                    prevMessageQueue = rcvMessageQueue;
+                    rcvMessageQueue = new Queue<P2pNetMessage>();
                 }
 
                 foreach( P2pNetMessage msg in prevMessageQueue)
@@ -66,6 +84,24 @@ namespace P2pNet
             mqttClient.UseConnectedHandler( e =>
             {
                 mqttClient.UseApplicationMessageReceivedHandler(OnMsgReceived);
+
+                Task.Run( async () =>
+                {
+                    while (true)
+                    {
+                        sendQueueReset.Wait();
+                        if (sendMessageQueue == null) // to exit set sendMessageQueue to null and set the reset event
+                            break;
+
+                        MqttApplicationMessage msg = null;
+                        while (sendMessageQueue.TryDequeue(out msg))
+                        {
+                            await mqttClient.PublishAsync(msg, CancellationToken.None).ConfigureAwait(false);
+                        }
+                    }
+                });
+
+
                 // runs when ConnectAsync is done
                 _Listen(localPeerId);
                 _OnNetworkJoined(mainChannel, localHelloData);
@@ -74,12 +110,15 @@ namespace P2pNet
 
         protected override void _Leave()
         {
-            // FIXME
-            throw new NotImplementedException();
+            sendMessageQueue = null;
+            sendQueueReset.Set(); // finishes the publishing task
+            // FIXME: need to do more than this
         }
 
         protected override void _Send(P2pNetMessage msg)
         {
+            // We want this to be fire-n-forget for the caller, so we just do the syncronous
+            // message construction and queue up the result.
             string msgJSON = JsonConvert.SerializeObject(msg);
 
             var message = new MqttApplicationMessageBuilder()
@@ -88,7 +127,12 @@ namespace P2pNet
                 .WithExactlyOnceQoS()
                 .Build();
 
-             mqttClient.PublishAsync(message, CancellationToken.None); // Since 3.0.5 with CancellationToken
+            sendMessageQueue.Enqueue(message); // BlockingCollection default is a ConcurrentQueue
+            sendQueueReset.Set();
+
+            // Another thread needs to grab from the queue and the await publish() in order to keep the
+            // messages in order.
+            //mqttClient.PublishAsync(message, CancellationToken.None); // Since 3.0.5 with CancellationToken
         }
 
         protected void OnMsgReceived(MqttApplicationMessageReceivedEventArgs args )
@@ -97,7 +141,7 @@ namespace P2pNet
             P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(Encoding.UTF8.GetString(mqttMsg.Payload));
              _AddReceiptTimestamp(msg);
             lock(queueLock)
-                messageQueue.Add(msg); // queue it up
+                rcvMessageQueue.Enqueue(msg); // queue it up
         }
 
 
@@ -105,7 +149,7 @@ namespace P2pNet
         {
             // Subscribe to a topic
             MqttClientSubscribeOptions options = new MqttClientSubscribeOptionsBuilder().WithTopicFilter(channel).Build();
-            Task.Run( () => { mqttClient.SubscribeAsync(options, CancellationToken.None); });
+            mqttClient.SubscribeAsync(options, CancellationToken.None);
         }
 
 
