@@ -1,0 +1,40 @@
+# Remove the line below if you want to inherit .editorconfig settings from higher directories
+# root = true
+
+# C# files
+[*.cs]
+
+#
+# Change standard message severities.
+#
+
+# IDE0060 - Remove unused parameter 'foo' if it is not part of a shipped public API
+#  A lot of these ARE public APIs
+dotnet_diagnostic.IDE0060.severity = silent
+
+#
+# Change default symbol styles
+#
+
+# private methods should be Pascal case with underscore prefix
+dotnet_naming_rule.private_methods_pascal_leading_underscore.severity = suggestion
+dotnet_naming_rule.private_methods_pascal_leading_underscore.symbols = private_method
+dotnet_naming_rule.private_methods_pascal_leading_underscore.style = private_method_style
+
+dotnet_naming_symbols.private_method.applicable_kinds           = method
+dotnet_naming_symbols.private_method.applicable_accessibilities = private
+
+dotnet_naming_style.private_method_style.capitalization = pascal_case
+dotnet_naming_style.private_method_style.required_prefix = _
+
+# protected methods should be Pascal case with NO underscore prefix
+# **** Why do I have to define this? It appears that defining the "private method" rule
+# above also makes it the case for protected methods as well. Why is that?
+dotnet_naming_rule.protected_methods_pascal_no_underscore.severity = suggestion
+dotnet_naming_rule.protected_methods_pascal_no_underscore.symbols = protected_method
+dotnet_naming_rule.protected_methods_pascal_no_underscore.style = protected_method_style
+
+dotnet_naming_symbols.protected_method.applicable_kinds           = method
+dotnet_naming_symbols.protected_method.applicable_accessibilities = protected
+
+dotnet_naming_style.protected_method_style.capitalization = pascal_case

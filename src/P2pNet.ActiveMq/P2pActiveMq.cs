@@ -9,9 +9,9 @@ namespace P2pNet
 
     public class P2pActiveMq : P2pNetBase
     {
-        private IConnection connection;
+        private readonly IConnection connection;
         private ISession session;
-        Dictionary<string, MessageListener> listeningDict;
+        private readonly Dictionary<string, MessageListener> listeningDict;
         private List<P2pNetMessage> messageQueue;
         private readonly object queueLock = new object();
 
@@ -26,7 +26,7 @@ namespace P2pNet
             connection = factory.CreateConnection(parts[0], parts[1]);
         }
 
-        protected override void _Poll()
+        protected override void ImplementationPoll()
         {
             if (messageQueue.Count > 0)
             {
@@ -39,35 +39,35 @@ namespace P2pNet
 
                 foreach( P2pNetMessage msg in prevMessageQueue)
                 {
-                    _OnReceivedNetMessage(msg.dstChannel, msg);
+                    OnReceivedNetMessage(msg.dstChannel, msg);
                 }
             }
         }
 
-        protected override void _Join(P2pNetChannelInfo mainChannel, string localId, string localHelloData)
+        protected override void ImplementationJoin(P2pNetChannelInfo mainChannel, string localId, string localHelloData)
         {
             session = connection.CreateSession();
             connection.Start();
-            _Listen(localId);
-            _OnNetworkJoined(mainChannel, localHelloData);
+            ImplementationListen(localId);
+            OnNetworkJoined(mainChannel, localHelloData);
         }
 
-        protected void _OnMessage(IMessage receivedMsg) // for all topics
+        protected void OnMessage(IMessage receivedMsg) // for all topics
         {
             ITextMessage txtMsg = receivedMsg as ITextMessage;
             P2pNetMessage p2pMsg = JsonConvert.DeserializeObject<P2pNetMessage>(txtMsg.Text);
-            _AddReceiptTimestamp(p2pMsg);
+            ImplementationAddReceiptTimestamp(p2pMsg);
             lock(queueLock)
                 messageQueue.Add(p2pMsg); // queue it up
         }
 
-        protected override void _Leave()
+        protected override void ImplementationLeave()
         {
             session.Close();
             connection.Close();
         }
 
-        protected override void _Send(P2pNetMessage msg)
+        protected override void ImplementationSend(P2pNetMessage msg)
         {
             IDestination dest = session.GetTopic(msg.dstChannel);
             IMessageProducer prod = session.CreateProducer(dest);
@@ -76,16 +76,16 @@ namespace P2pNet
             prod.Send(session.CreateTextMessage(msgJSON));
         }
 
-        protected override void _Listen(string channel)
+        protected override void ImplementationListen(string channel)
         {
             IDestination dest = session.GetTopic(channel);
             IMessageConsumer cons = session.CreateConsumer(dest);
-            MessageListener l =  new MessageListener(_OnMessage);
+            MessageListener l =  new MessageListener(OnMessage);
             listeningDict[channel] =  l;
             cons.Listener += l;
         }
 
-        protected override void _StopListening(string channel)
+        protected override void ImplementationStopListening(string channel)
         {
             if (listeningDict.ContainsKey(channel))
             {
@@ -98,9 +98,9 @@ namespace P2pNet
                 logger.Warn($"_StopListening(): Not listening to {channel}");
         }
 
-        protected override string _NewP2pId() => System.Guid.NewGuid().ToString();
+        protected override string ImplementationNewP2pId() => System.Guid.NewGuid().ToString();
 
-        protected override void _AddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = P2pNetDateTime.NowMs;
+        protected override void ImplementationAddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = P2pNetDateTime.NowMs;
 
     }
 }

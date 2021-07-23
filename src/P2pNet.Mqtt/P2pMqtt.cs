@@ -20,8 +20,8 @@ namespace P2pNet
         //&&& private ConcurrentQueue<MqttApplicationMessage> sendMessageQueue;
         //&&& private ManualResetEventSlim sendQueueReset;
 
-        private MQTTnet.Client.IMqttClient mqttClient;
-        private Dictionary<string,string> connectOpts;
+        private readonly MQTTnet.Client.IMqttClient mqttClient;
+        private readonly Dictionary<string,string> connectOpts;
 
         public P2pMqtt(IP2pNetClient _client, string _connectionString) : base(_client, _connectionString)
         {
@@ -41,7 +41,7 @@ namespace P2pNet
         }
 
 
-        protected override void _Poll()
+        protected override void ImplementationPoll()
         {
             // receive polling
             if (rcvMessageQueue.Count > 0)
@@ -55,12 +55,12 @@ namespace P2pNet
 
                 foreach( P2pNetMessage msg in prevMessageQueue)
                 {
-                    _OnReceivedNetMessage(msg.dstChannel, msg);
+                    OnReceivedNetMessage(msg.dstChannel, msg);
                 }
             }
         }
 
-        protected override void _Join(P2pNetChannelInfo mainChannel, string localPeerId, string localHelloData)
+        protected override void ImplementationJoin(P2pNetChannelInfo mainChannel, string localPeerId, string localHelloData)
         {
             // TODO: add TLS
 
@@ -76,7 +76,7 @@ namespace P2pNet
             mqttClient.ConnectAsync(options, CancellationToken.None); // Since 3.0.5 with CancellationToken
             mqttClient.UseConnectedHandler( e =>
             {
-                mqttClient.UseApplicationMessageReceivedHandler(OnMsgReceived);
+                mqttClient.UseApplicationMessageReceivedHandler(_OnMsgReceived);
 
                 // Task.Run( async () =>
                 // {
@@ -96,12 +96,12 @@ namespace P2pNet
 
 
                 // runs when ConnectAsync is done
-                _Listen(localPeerId);
-                _OnNetworkJoined(mainChannel, localHelloData);
+                ImplementationListen(localPeerId);
+                OnNetworkJoined(mainChannel, localHelloData);
             });
         }
 
-        protected override void _Leave()
+        protected override void ImplementationLeave()
         {
             //&&& sendMessageQueue = null;
             //&&& sendQueueReset.Set(); // finishes the publishing task
@@ -109,7 +109,7 @@ namespace P2pNet
             // FIXME: need to do more than this
         }
 
-        protected override void _Send(P2pNetMessage msg)
+        protected override void ImplementationSend(P2pNetMessage msg)
         {
             // We want this to be fire-n-forget for the caller, so we just do the syncronous
             // message construction and queue up the result.
@@ -131,17 +131,17 @@ namespace P2pNet
             mqttClient.PublishAsync(message, CancellationToken.None); // Since 3.0.5 with CancellationToken
         }
 
-        protected void OnMsgReceived(MqttApplicationMessageReceivedEventArgs args )
+        private void _OnMsgReceived(MqttApplicationMessageReceivedEventArgs args )
         {
             MqttApplicationMessage mqttMsg = args.ApplicationMessage;
             P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(Encoding.UTF8.GetString(mqttMsg.Payload));
-             _AddReceiptTimestamp(msg);
+             ImplementationAddReceiptTimestamp(msg);
             lock(queueLock)
                 rcvMessageQueue.Enqueue(msg); // queue it up
         }
 
 
-        protected override void _Listen(string channel)
+        protected override void ImplementationListen(string channel)
         {
             // Subscribe to a topic
             MqttClientSubscribeOptions options = new MqttClientSubscribeOptionsBuilder().WithTopicFilter(channel).Build();
@@ -149,18 +149,18 @@ namespace P2pNet
         }
 
 
-        protected override void _StopListening(string channel)
+        protected override void ImplementationStopListening(string channel)
         {
             // FIXME
             throw new NotImplementedException();
         }
 
-        protected override string _NewP2pId()
+        protected override string ImplementationNewP2pId()
         {
             return System.Guid.NewGuid().ToString();
         }
 
-        protected override void _AddReceiptTimestamp(P2pNetMessage msg)
+        protected override void ImplementationAddReceiptTimestamp(P2pNetMessage msg)
         {
             msg.rcptTime = P2pNetDateTime.NowMs;
         }

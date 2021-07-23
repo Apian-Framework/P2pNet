@@ -33,7 +33,7 @@ namespace P2pNetTests
         const string kBadConnectionString_AuthFailure = "BadAuthFail";
         const string kBadConnectionString_BadString = "BadString";
 
-        Dictionary<string, ConnectionStringFailure> ConnectFailures = new Dictionary<string, ConnectionStringFailure>() {
+        private readonly Dictionary<string, ConnectionStringFailure> ConnectFailures = new Dictionary<string, ConnectionStringFailure>() {
             { kBadConnectionStr_BadHost, new ConnectionStringFailure( typeof(StackExchange.Redis.RedisConnectionException),
                 ConnectionFailureType.UnableToConnect,
                 "It was not possible to connect to the redis server(s). UnableToConnect on fake.host.name:6379/Interactive, "
@@ -55,7 +55,7 @@ namespace P2pNetTests
         };
 
 
-        IConnectionMultiplexer MockMuxConnectFactory(string connString)
+        IConnectionMultiplexer _MockMuxConnectFactory(string connString)
         {
             // Crap! ChannelMessageQueue has no interface...
             // and it's is sealed, so you can't mock it as a class...
@@ -88,7 +88,7 @@ namespace P2pNetTests
         {
             mockCli = new Mock<IP2pNetClient>(MockBehavior.Strict);
             // public P2pRedis(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null, muxInstance)
-            P2pRedis p2p =  new P2pRedis(mockCli.Object,kGoodConnectionStr, MockMuxConnectFactory);
+            P2pRedis p2p =  new P2pRedis(mockCli.Object,kGoodConnectionStr, _MockMuxConnectFactory);
             Assert.That(p2p, Is.Not.Null);
         }
 
@@ -101,7 +101,7 @@ namespace P2pNetTests
             mockCli = new Mock<IP2pNetClient>(MockBehavior.Strict);
             ConnectionStringFailure csf = ConnectFailures[connString];
             // public P2pRedis(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null, muxInstance)
-            P2pRedis p2p = new P2pRedis(mockCli.Object,connString, MockMuxConnectFactory);
+            P2pRedis p2p = new P2pRedis(mockCli.Object,connString, _MockMuxConnectFactory);
             Exception ex = Assert.Throws(typeof(Exception), () => p2p.Join(null, "122345"));
             Assert.That(ex.Message, Is.EqualTo(csf.p2pNetExceptionMsg));
         }
@@ -113,7 +113,7 @@ namespace P2pNetTests
 
             P2pNetChannelInfo ci = new P2pNetChannelInfo("TestChan", "TestChanId", 10000);
 
-            P2pRedis p2p =  new P2pRedis(mockCli.Object,kGoodConnectionStr, MockMuxConnectFactory);
+            P2pRedis p2p =  new P2pRedis(mockCli.Object,kGoodConnectionStr, _MockMuxConnectFactory);
             Assert.That(ci, Is.Not.Null);
 
             // Have no idea how to test this easily (or even sorta easily)

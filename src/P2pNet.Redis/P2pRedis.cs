@@ -9,8 +9,8 @@ namespace P2pNet
     public class P2pRedis : P2pNetBase
     {
         private readonly object queueLock = new object();
-        List<P2pNetMessage> messageQueue;
-        public IConnectionMultiplexer connectionMux {get; private set; } = null;
+        private List<P2pNetMessage> messageQueue;
+        private IConnectionMultiplexer ConnectionMux {get; set; } = null;
         protected Func<string, IConnectionMultiplexer> customConnectFactory;
         protected string connectionString;
 
@@ -22,7 +22,7 @@ namespace P2pNet
             messageQueue = new List<P2pNetMessage>();
         }
 
-        private string GuessRedisProblem(string exMsg)
+        private string _GuessRedisProblem(string exMsg)
         {
             // RedisConnectionException messages can be pretty long and unhelpful
             // to the user, but the Message property is the only indication what sort
@@ -35,7 +35,7 @@ namespace P2pNet
             return msg;
         }
 
-        protected override void _Poll()
+        protected override void ImplementationPoll()
         {
             if (messageQueue?.Count > 0)
             {
@@ -48,82 +48,82 @@ namespace P2pNet
 
                 foreach( P2pNetMessage msg in prevMessageQueue)
                 {
-                    _OnReceivedNetMessage(msg.dstChannel, msg);
+                    OnReceivedNetMessage(msg.dstChannel, msg);
                 }
             }
         }
 
-        protected override void _Join(P2pNetChannelInfo mainChannel, string localPeerId, string localHelloData)
+        protected override void ImplementationJoin(P2pNetChannelInfo mainChannel, string localPeerId, string localHelloData)
         {
 
             try {
-                connectionMux =  customConnectFactory != null ? customConnectFactory(connectionString) : ConnectionMultiplexer.Connect(connectionString); // Use the passed-in test mux instance if supplied
+                ConnectionMux =  customConnectFactory != null ? customConnectFactory(connectionString) : ConnectionMultiplexer.Connect(connectionString); // Use the passed-in test mux instance if supplied
             } catch (StackExchange.Redis.RedisConnectionException ex) {
                 logger.Debug(string.Format("P2pRedis Ctor: StackExchange.Redis.RedisConnectionException:{0}", ex.Message));
-                throw( new Exception($"{GuessRedisProblem(ex.Message)}"));
+                throw( new Exception($"{_GuessRedisProblem(ex.Message)}"));
             } catch (System.ArgumentException ex) {
                 logger.Debug(string.Format("P2pRedis Ctor: System.ArgumentException:{0}", ex.Message));
                 throw( new Exception($"Bad connection string: {ex.Message}"));
             }
-            _Listen(localPeerId);
-            _OnNetworkJoined(mainChannel, localHelloData);
+            ImplementationListen(localPeerId);
+            OnNetworkJoined(mainChannel, localHelloData);
         }
 
-        protected override void _Leave()
+        protected override void ImplementationLeave()
         {
-            connectionMux.Close();
-            connectionMux =null;
+            ConnectionMux.Close();
+            ConnectionMux =null;
             customConnectFactory = null;
             connectionString = null;
             messageQueue = null;
         }
 
-        protected override void _Send(P2pNetMessage msg)
+        protected override void ImplementationSend(P2pNetMessage msg)
         {
             string msgJSON = JsonConvert.SerializeObject(msg);
-            connectionMux.GetSubscriber().PublishAsync(msg.dstChannel, msgJSON);
+            ConnectionMux.GetSubscriber().PublishAsync(msg.dstChannel, msgJSON);
         }
 
-        protected override void _Listen(string channel)
+        protected override void ImplementationListen(string channel)
         {
             //_ListenConcurrent(channel);
             _ListenSequential(channel);
         }
 
-        protected  void _ListenConcurrent(string channel)
-        {
-            connectionMux.GetSubscriber().Subscribe(channel, (rcvChannel, msgJSON) => {
-                P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(msgJSON);
-                _AddReceiptTimestamp(msg);
-                lock(queueLock)
-                    messageQueue.Add(msg); // queue it up
-            });
-        }
+        // private void _ListenConcurrent(string channel)
+        // {
+        //     ConnectionMux.GetSubscriber().Subscribe(channel, (rcvChannel, msgJSON) => {
+        //         P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(msgJSON);
+        //         ImplementationAddReceiptTimestamp(msg);
+        //         lock(queueLock)
+        //             messageQueue.Add(msg); // queue it up
+        //     });
+        // }
 
-        protected void _ListenSequential(string channel)
+        private void _ListenSequential(string channel)
         {
-            var rcvChannel = connectionMux.GetSubscriber().Subscribe(channel);
+            var rcvChannel = ConnectionMux.GetSubscriber().Subscribe(channel);
 
             rcvChannel.OnMessage(channelMsg =>
             {
                 P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(channelMsg.Message);
-                _AddReceiptTimestamp(msg);
+                ImplementationAddReceiptTimestamp(msg);
                 lock(queueLock)
                     messageQueue.Add(msg); // queue it up
             });
         }
 
-        protected override void _StopListening(string channel)
+        protected override void ImplementationStopListening(string channel)
         {
-            connectionMux.GetSubscriber().Unsubscribe(channel);
+            ConnectionMux.GetSubscriber().Unsubscribe(channel);
         }
 
-        protected override string _NewP2pId()
+        protected override string ImplementationNewP2pId()
         {
             return System.Guid.NewGuid().ToString();
         }
 
-        protected override void _AddReceiptTimestamp(P2pNetMessage msg)
+        protected override void ImplementationAddReceiptTimestamp(P2pNetMessage msg)
         {
             msg.rcptTime = P2pNetDateTime.NowMs;
         }

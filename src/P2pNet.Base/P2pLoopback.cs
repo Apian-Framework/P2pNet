@@ -18,7 +18,7 @@ namespace P2pNet
             listeningTo = new List<string>();
         }
 
-        protected override void _Poll()
+        protected override void ImplementationPoll()
         {
             if (messageQueue.Count > 0)
             {
@@ -29,48 +29,48 @@ namespace P2pNet
 
                 foreach( P2pNetMessage msg in prevMessageQueue)
                 {
-                    _OnReceivedNetMessage(msg.dstChannel, msg);
+                    OnReceivedNetMessage(msg.dstChannel, msg);
                 }
             }
         }
 
-        protected override void _Join(P2pNetChannelInfo mainChannel, string localPeerId, string localHelloData)
+        protected override void ImplementationJoin(P2pNetChannelInfo mainChannel, string localPeerId, string localHelloData)
         {
-            _Listen(localPeerId);
-            _OnNetworkJoined(mainChannel, localHelloData);
+            ImplementationListen(localPeerId);
+            OnNetworkJoined(mainChannel, localHelloData);
 
         }
 
-        protected override void _Leave()
+        protected override void ImplementationLeave()
         {
             messageQueue = new List<P2pNetMessage>();
             listeningTo = new List<string>();
         }
-        protected override void _Send(P2pNetMessage msg)
+        protected override void ImplementationSend(P2pNetMessage msg)
         {
             if (listeningTo.Contains(msg.dstChannel))
             {
-                _AddReceiptTimestamp(msg);
+                ImplementationAddReceiptTimestamp(msg);
                 messageQueue.Add(msg);
             }
         }
 
-        protected override void _Listen(string channel)
+        protected override void ImplementationListen(string channel)
         {
             listeningTo.Add(channel);
         }
 
-        protected override void _StopListening(string channel)
+        protected override void ImplementationStopListening(string channel)
         {
             listeningTo.Remove(channel);
         }
 
-        protected override string _NewP2pId()
+        protected override string ImplementationNewP2pId()
         {
             return System.Guid.NewGuid().ToString();
         }
 
-        protected override void _AddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = P2pNetDateTime.NowMs;
+        protected override void ImplementationAddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = P2pNetDateTime.NowMs;
 
     }
 }
