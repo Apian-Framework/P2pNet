@@ -125,7 +125,7 @@ namespace P2pNetBaseTests
         public void P2pNetChannelPeerCollection_ConstructorWorks()
         {
             // public P2pNetChannelPeer(P2pNetPeer peer, P2pNetChannel channel)
-            P2pNetChannelPeerCollection coll = new P2pNetChannelPeerCollection();
+            P2pNetChannelPeerPairings coll = new P2pNetChannelPeerPairings();
             Assert.That(coll, Is.Not.Null);
             Assert.That(coll.Channels, Is.Not.Null);
             Assert.That(coll.Peers, Is.Not.Null);
@@ -139,7 +139,7 @@ namespace P2pNetBaseTests
             P2pNetChannel mainChan = CreateChannel(chInfo); // defaultPeerData
 
             // public P2pNetChannelPeer(P2pNetPeer peer, P2pNetChannel channel)
-            P2pNetChannelPeerCollection coll = new P2pNetChannelPeerCollection();
+            P2pNetChannelPeerPairings coll = new P2pNetChannelPeerPairings();
             Assert.That(coll, Is.Not.Null);
 
             coll.SetMainChannel(mainChan);

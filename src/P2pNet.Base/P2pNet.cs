@@ -23,7 +23,7 @@ namespace P2pNet
     public interface IP2pNet
     {
         // ReSharper disable UnusedMember.Global
-        void Loop(); // needs to be called periodically (drives message pump + group handling)
+        void Update(); // needs to be called periodically (drives message pump + group handling)
         string GetId(); // Local peer's P2pNet ID.
         P2pNetChannel GetMainChannel();
         void Join(P2pNetChannelInfo mainChannel, string helloData);
@@ -95,25 +95,24 @@ namespace P2pNet
         protected IP2pNetClient client;
         protected string connectionStr; // Transport-dependent format
 
-        protected P2pNetChannelPeerCollection channelPeers;
+        protected P2pNetChannelPeerPairings channelPeers;
 
         protected Dictionary<string, long> lastMsgIdSent; // last Id sent to each channel. Msg IDs are serial, and PER CHANNEL
         public UniLogger logger;
 
         //public static long NowMs => DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
 
-        public P2pNetBase(IP2pNetClient _client, string _connectionStr)
+        protected P2pNetBase(IP2pNetClient _client, string _connectionStr)
         {
              client = _client;
             connectionStr = _connectionStr;
             logger = UniLogger.GetLogger("P2pNet");
             InitJoinParams();
-            localId = ImplementationNewP2pId();
         }
 
         // IP2pNet
 
-        public string GetId() => localId;
+        public string GetId() => localId ?? (localId = ImplementationNewP2pId());
 
         public P2pNetChannel GetMainChannel() =>channelPeers.MainChannel;
 
@@ -151,7 +150,7 @@ namespace P2pNet
         public string GetPeerData(string channelId, string peerId) => channelPeers.GetChannelPeer(channelId, peerId)?.helloData;
         public PeerClockSyncData GetPeerClockSyncData(string peerId) => channelPeers.GetPeerClockSyncData(peerId);
 
-        public void Loop()
+        public void Update()
         {
             if (localId == null)
                 return; // Not connected so don't bother
@@ -230,7 +229,7 @@ namespace P2pNet
             // by peerCount descending...
             List<(string,List<string>)> channelsWithPeers = chpsThatNeedPing.Select(chp => chp.ChannelId).Distinct() // unique channelIds
                     .Select(chId => (chId, chpsThatNeedPing.Where( chp => chp.ChannelId == chId ).Select(chp => chp.P2pId).ToList())) // (chId, List<peerId>),...
-                    .OrderByDescending( tup => tup.Item2.Count())                                                   // sorted descendng be peerCnt
+                    .OrderByDescending( tup => tup.Item2.Count)                                                   // sorted descendng be peerCnt
                     .ToList();
 
             // Now, we want that same list - but want for each peerId to only appear once: with the first channel it's listed with.
@@ -240,7 +239,7 @@ namespace P2pNet
             foreach ( (string chId, List<string> peerIds) in channelsWithPeers)
             {
                 List<string> remainingPeerIds = peerIds.Where(pid => !usedPeerIds.Contains(pid)).ToList();
-                if (remainingPeerIds.Count() > 0)
+                if (remainingPeerIds.Count > 0)
                 {
                     filteredTuples.Add((chId, remainingPeerIds));
                     usedPeerIds.AddRange(peerIds);
@@ -250,7 +249,7 @@ namespace P2pNet
             // OK - now for every channel with more than one peer brodcast a ping. For channels with a single peer send directly
             foreach ( (string chId, List<string> peerIds) in filteredTuples)
             {
-                if (peerIds.Count() > 1)
+                if (peerIds.Count > 1)
                     SendPing(chId); // broadcast
                 else
                     SendPing(peerIds[0]);
@@ -431,7 +430,7 @@ namespace P2pNet
 
         protected void InitJoinParams()
         {
-            channelPeers = new P2pNetChannelPeerCollection();
+            channelPeers = new P2pNetChannelPeerPairings();
             lastMsgIdSent = new Dictionary<string, long>();
         }
 

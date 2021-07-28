@@ -6,18 +6,48 @@
 
 #
 # Change standard message severities.
+# It's not completely clear to me what these category setting actually do.
 #
+dotnet_analyzer_diagnostic.category-Design.severity = silent
+dotnet_analyzer_diagnostic.category-Naming.severity = silent
+dotnet_analyzer_diagnostic.category-Style.severity = silent
 
-# IDE0060 - Remove unused parameter 'foo' if it is not part of a shipped public API
 #  A lot of these ARE public APIs
-dotnet_diagnostic.IDE0060.severity = silent
+dotnet_diagnostic.IDE0060.severity = silent # IDE0060 - Remove unused parameter 'foo' if it is not part of a shipped public API
+dotnet_diagnostic.CA1801.severity = silent  # Parameter "foo"" of method "bar"" is never used. Remove the parameter or use it in the method body
+
+# I'm not ready to give up on underscores completely yet.
+dotnet_diagnostic.CA1305.severity = silent # Identifiers should not contain underscores
+
+# This just requires too much verbiage and here always should be using the current culture
+dotnet_diagnostic.CA1707.severity = silent # The behavior of 'int.Parse(string)' could vary based on the current user's locale settings.
+
+# These I just don;t want to be build-breakers or show up as warnings.
+# The informational complaints should still be there - and in most cases ought to be addressed.
+
+# CA1051: Do not declare visible instance fields
+# CA2211: Non-constant fields should not be visible
+# Aren't these more-or-less the same?
+dotnet_diagnostic.CA1051.severity = suggestion
+dotnet_diagnostic.CA2211.severity = suggestion
+dotnet_diagnostic.CA1024.severity = suggestion # Use properties where appropriate
+
+# assorted others
+dotnet_diagnostic.CA1002.severity = suggestion
+dotnet_diagnostic.CA1725.severity = suggestion
+dotnet_diagnostic.CA1062.severity = suggestion
+dotnet_diagnostic.CA1822.severity = suggestion # Member 'FooMethod' does not access instance data and can be marked as static.
+dotnet_diagnostic.CA2201.severity = suggestion # Exception type System.Exception is not sufficiently specific
+dotnet_diagnostic.CA5394.severity = suggestion # Use cryptographically secure random number generators when randomness is required for security. It is frequently NOT required.
+dotnet_diagnostic.CA2225.severity = suggestion # Provide a method named 'Foo' as a friendly alternate for operator op_Foo
+
 
 #
 # Change default symbol styles
 #
 
 # private methods should be Pascal case with underscore prefix
-dotnet_naming_rule.private_methods_pascal_leading_underscore.severity = suggestion
+dotnet_naming_rule.private_methods_pascal_leading_underscore.severity = warning
 dotnet_naming_rule.private_methods_pascal_leading_underscore.symbols = private_method
 dotnet_naming_rule.private_methods_pascal_leading_underscore.style = private_method_style
 
@@ -30,7 +60,7 @@ dotnet_naming_style.private_method_style.required_prefix = _
 # protected methods should be Pascal case with NO underscore prefix
 # **** Why do I have to define this? It appears that defining the "private method" rule
 # above also makes it the case for protected methods as well. Why is that?
-dotnet_naming_rule.protected_methods_pascal_no_underscore.severity = suggestion
+dotnet_naming_rule.protected_methods_pascal_no_underscore.severity = warning
 dotnet_naming_rule.protected_methods_pascal_no_underscore.symbols = protected_method
 dotnet_naming_rule.protected_methods_pascal_no_underscore.style = protected_method_style
 

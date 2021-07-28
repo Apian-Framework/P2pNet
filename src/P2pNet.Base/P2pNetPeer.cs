@@ -30,10 +30,10 @@ namespace P2pNet
     {
         public string p2pId;
 
-        protected long lastClockSyncMs = 0; // so we know if we're syncing
+        protected long lastClockSyncMs; // so we know if we're syncing
 
-        public  long NetworkLagMs {get; private set;} = 0; // round trip time / 2
-        public long ClockOffsetMs {get; private set;} = 0; // localTime + offset = peerTime
+        public  long NetworkLagMs {get; private set;} // round trip time / 2
+        public long ClockOffsetMs {get; private set;}// localTime + offset = peerTime
         public P2pNetPeer(string _p2pId)
         {
             p2pId = _p2pId;

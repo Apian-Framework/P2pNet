@@ -1,0 +1,9 @@
+#
+# Like .editorconfig, but global. (Can you tell I have no idea what this is really FOR?)
+# In practice it turns out that there are Roslyn analyzer rules that you can't modify
+# using editorconfig, but can here. To be honest I dunno why.
+
+# I just want to make these be suggestions rather than warnings for now.
+
+dotnet_diagnostic.CA1014.severity = suggestion # Mark assemblies with CLSCompliant
+dotnet_diagnostic.CA1016.severity = suggestion #  Mark assemblies with assembly version

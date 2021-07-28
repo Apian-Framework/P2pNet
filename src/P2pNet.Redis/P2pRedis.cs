@@ -10,7 +10,7 @@ namespace P2pNet
     {
         private readonly object queueLock = new object();
         private List<P2pNetMessage> messageQueue;
-        private IConnectionMultiplexer ConnectionMux {get; set; } = null;
+        private IConnectionMultiplexer ConnectionMux {get; set; }
         protected Func<string, IConnectionMultiplexer> customConnectFactory;
         protected string connectionString;
 

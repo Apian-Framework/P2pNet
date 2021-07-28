@@ -20,10 +20,10 @@ namespace P2pNet
         public P2pNetChannel Channel { get; private set; }
         public P2pNetPeer Peer { get; private set; }
         public string helloData;
-        protected long firstHelloSentTs = 0; // when did we FIRST send a hello/hello req? (for knowing when to give up)
+        protected long firstHelloSentTs; // default: 0 - when did we FIRST send a hello/hello req? (for knowing when to give up)
         // TODO: need to set the above either in the constructor (if it includes hello data)
         // or when we send a hello to a peer that has firstHelloSentTs == 0;
-        public long lastMsgId = 0; // Last msg rcvd from this channelPeer. Each tags each mesage with a serial # (nextMsgId in P2PNetBase)
+        public long lastMsgId; // default 0 -  Last msg rcvd from this channelPeer. Each tags each mesage with a serial # (nextMsgId in P2PNetBase)
 
         public P2pNetChannelPeer(P2pNetPeer peer, P2pNetChannel channel)
         {
@@ -99,15 +99,15 @@ namespace P2pNet
 
     }
 
-    public class P2pNetChannelPeerCollection // TODO: needs a better name
+    public class P2pNetChannelPeerPairings
     {
         public  P2pNetChannel MainChannel { get; private set;}  // reference into Channels
-        public Dictionary<string, P2pNetPeer> Peers { get; protected set; }
-        public Dictionary<string, P2pNetChannel> Channels; //
+        public Dictionary<string, P2pNetPeer> Peers { get; private set; }
+        public Dictionary<string, P2pNetChannel> Channels { get; private set; } //
         public Dictionary<string, P2pNetChannelPeer> ChannelPeers { get; private set; } // key is (<channelID>/<peerId>)
         public UniLogger Logger;
 
-        public P2pNetChannelPeerCollection()
+        public P2pNetChannelPeerPairings()
         {
             Peers = new Dictionary<string, P2pNetPeer>();
             Channels = new Dictionary<string, P2pNetChannel>();

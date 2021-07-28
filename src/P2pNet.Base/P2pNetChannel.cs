@@ -42,8 +42,8 @@ namespace P2pNet
 
         public bool IsEquivalentTo(P2pNetChannelInfo inf2)
         {
-            return ( name.Equals(inf2.name)
-                && id.Equals(inf2.id)
+            return (name.Equals(inf2.name, StringComparison.Ordinal)
+                && id.Equals(inf2.id, StringComparison.Ordinal)
                 && dropMs == inf2.dropMs
                 && pingMs == inf2.pingMs
                 && missingMs == inf2.missingMs
