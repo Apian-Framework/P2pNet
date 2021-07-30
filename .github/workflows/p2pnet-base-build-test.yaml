@@ -5,7 +5,7 @@ env:
   SUBPROJECT: P2pNet.Base
 
 on:
-  workflow_dispatch:  
+  workflow_dispatch:
   push:
     branches: [ master ]
     paths:
@@ -23,10 +23,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Setup .NET Core
+
+    - name: Setup .NET Core for netcoreapp3.1 target
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 3.1.301
+
+    - name: Setup .NET Core for build tools
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 5.0.302
 
     - name: Checkout Target
       uses: actions/checkout@v2

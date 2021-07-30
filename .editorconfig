@@ -28,6 +28,7 @@ dotnet_diagnostic.CA1305.severity = silent # Identifiers should not contain unde
 
 # This just requires too much verbiage and here always should be using the current culture
 dotnet_diagnostic.CA1707.severity = silent # The behavior of 'int.Parse(string)' could vary based on the current user's locale settings.
+dotnet_diagnostic.CA1310.severity = silent # The behavior of 'string.EndsWith(string)' could vary based on the current user's locale settings.
 
 # These I just don;t want to be build-breakers or show up as warnings.
 # The informational complaints should still be there - and in most cases ought to be addressed.
