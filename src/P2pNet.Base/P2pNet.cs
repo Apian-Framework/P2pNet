@@ -159,7 +159,7 @@ namespace P2pNet
 
             // TODO: iterating over everything this way is kinda brutish.
             // Ought to be able to figure out when things will need to get done in advance and
-            // put them in a priority queue. Then in Loop() just check which need to happen this "fame"
+            // put them in a priority queue. Then in Update() just check which need to happen this "fame"
             // and do 'em.
 
             // During this update we are looking for:
@@ -183,7 +183,7 @@ namespace P2pNet
                 .Where( chp => chp.HelloTimedOut()).ToList();
             foreach (P2pNetChannelPeer chp in chpsThatFailedHello)
             {
-                logger.Warn($"Loop - Failed HelloTimedOut(). Chp: {SID(chp.P2pId)}/{chp.ChannelId}");
+                logger.Warn($"Update - Failed HelloTimedOut(). Chp: {SID(chp.P2pId)}/{chp.ChannelId}");
                 channelPeers.RemoveChannelPeer(chp); // Just drop it
             }
 
@@ -194,9 +194,9 @@ namespace P2pNet
             List<P2pNetChannelPeer> chpsThatAreNewlyMissing = channelPeers.ChannelPeers.Values
                 .Where( chp => chp.IsNewlyMissing() ).ToList();
 
-              foreach (P2pNetChannelPeer chp in chpsThatAreNewlyMissing)
+            foreach (P2pNetChannelPeer chp in chpsThatAreNewlyMissing)
             {
-                logger.Warn($"Loop - ChannelPeer {SID(chp.P2pId)}/{chp.ChannelId} is missing. Notifying client.");
+                logger.Warn($"Update - ChannelPeer {SID(chp.P2pId)}/{chp.ChannelId} is missing. Notifying client.");
                 client.OnPeerMissing(chp.ChannelId, chp.P2pId);
                 chp.MissingNotificationSent = true; // TODO: find a better way to keep from repeating these messages?
             }
@@ -206,7 +206,7 @@ namespace P2pNet
                 .Where( chp => chp.HasTimedOut()).ToList();
             foreach (P2pNetChannelPeer chp in chpsThatHaveTimedOut)
             {
-                logger.Warn($"Loop - ChannelPeer {SID(chp.P2pId)}/{chp.ChannelId} timed out. Notifying client and removing peer.");
+                logger.Warn($"Update - ChannelPeer {SID(chp.P2pId)}/{chp.ChannelId} timed out. Notifying client and removing peer.");
                 client.OnPeerLeft( chp.ChannelId, chp.P2pId);
 
                 channelPeers.RemoveChannelPeer(chp);
