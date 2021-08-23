@@ -20,6 +20,7 @@ namespace P2pNet
             customConnectFactory =  _muxConnectFactory;
             connectionString = _connectionString;
             messageQueue = new List<P2pNetMessage>();
+            GetId();
         }
 
         private string _GuessRedisProblem(string exMsg)
