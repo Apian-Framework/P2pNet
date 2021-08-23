@@ -155,6 +155,8 @@ namespace P2pNet
             if (localId == null)
                 return; // Not connected so don't bother
 
+            logger.Debug($"Update()");
+
             ImplementationPoll(); // Do any network polling
 
             // TODO: iterating over everything this way is kinda brutish.
