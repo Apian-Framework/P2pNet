@@ -96,15 +96,24 @@ namespace P2pNetBaseTests
         [Test]
         public void HelloPayload_Ctor()
         {
-            // public HelloPayload(string chId, string helloData) {channelId = chId; channelHelloData = helloData;}
-            const string channelId = "channelId";
+            // public HelloPayload(P2pNetChannelInfo info, string helloData) {channelInfo = info; channelHelloData = helloData;}
+            P2pNetChannelInfo channelInfo = new P2pNetChannelInfo(
+                "chanName",
+                "chanId",
+                0, // dropMs
+                0, // pingMs
+                0, // missingMs
+                0, // netSyncMs
+                0  // maxPeers
+            );
+
             const string helloData = "helloData";
 
 
-            HelloPayload pld =  new HelloPayload(channelId, helloData);
+            HelloPayload pld =  new HelloPayload(channelInfo, helloData);
             Assert.That(pld, Is.Not.Null);
-            Assert.That(pld.channelId, Is.EqualTo(channelId));
-            Assert.That(pld.channelHelloData, Is.EqualTo(helloData));
+            Assert.That(pld.channelInfo, Is.EqualTo(channelInfo));
+            Assert.That(pld.peerChannelHelloData, Is.EqualTo(helloData));
 
         }
 

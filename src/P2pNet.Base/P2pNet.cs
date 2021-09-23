@@ -1,4 +1,4 @@
-﻿using System.Threading.Tasks;
+﻿using System;
 using System.Linq;
 using System.Collections.Generic;
 using Newtonsoft.Json;
@@ -73,9 +73,9 @@ namespace P2pNet
 
     public class HelloPayload
     {
-        public string channelId; // a Hello is often sent straight to a peer - over the peerId channel
-        public string channelHelloData;
-        public HelloPayload(string chId, string helloData) {channelId = chId; channelHelloData = helloData;}
+        public P2pNetChannelInfo channelInfo;
+        public string peerChannelHelloData;
+        public HelloPayload(P2pNetChannelInfo chInfo, string helloData) {channelInfo = chInfo; peerChannelHelloData = helloData;}
     }
 
     public class SyncPayload
@@ -131,8 +131,8 @@ namespace P2pNet
         {
             // called back from _Join() when it is done - which might be async
             // TODO: decide if this is just stupid
-            // For some reason I'm trying to keep async/awai out of this so maybe it can be used
-            // as an example for porting to languages that son;t support it - THAT's what might be
+            // For some reason I'm trying to keep async/await out of this so maybe it can be used
+            // as an example for porting to languages that don't support it - THAT's what might be
             // dumb.
             AddChannel(mainChannelInfo, localHelloData ); // Set up channel AND listen
             channelPeers.SetMainChannel( channelPeers.GetChannel(mainChannelInfo.id));
@@ -476,7 +476,7 @@ namespace P2pNet
             // When replying, or sending to a single peer, the destChannel is usually the recipient peer
             P2pNetChannel chan = channelPeers.GetChannel(subjectChannel);
             string msgType = requestReply ?  P2pNetMessage.MsgHello : P2pNetMessage.MsgHelloReply;
-            DoSend(destChannel, msgType, JsonConvert.SerializeObject(new HelloPayload(subjectChannel, chan.LocalHelloData)));
+            DoSend(destChannel, msgType, JsonConvert.SerializeObject(new HelloPayload(chan.Info, chan.LocalHelloData)));
         }
 
         protected void OnHelloMsg(string unusedSrcChannel, P2pNetMessage msg)
@@ -484,15 +484,21 @@ namespace P2pNet
             HelloPayload hp = JsonConvert.DeserializeObject<HelloPayload>(msg.payload);
             string senderId = msg.srcId;
 
-            P2pNetChannelPeer chp = channelPeers.GetChannelPeer(hp.channelId, senderId);
+            P2pNetChannelInfo localInfo = channelPeers.GetChannel(hp.channelInfo.id)?.Info;
+            bool channelInfoIsGood =  localInfo.IsEquivalentTo(hp.channelInfo);
+
+            if (!channelInfoIsGood)
+                throw new ArgumentException("Channel info mismatch");
+
+            P2pNetChannelPeer chp = channelPeers.GetChannelPeer(hp.channelInfo.id, senderId);
             if (chp == null)
-                chp = channelPeers.AddChannelPeer(hp.channelId, senderId);
+                chp = channelPeers.AddChannelPeer(hp.channelInfo.id, senderId);
 
             if (chp.helloData == null)
             {
                 logger.Verbose($"_OnHelloMsg - Hello for channel {chp.ChannelId} from peer {SID(chp.P2pId)}" );
 
-                chp.helloData = hp.channelHelloData;
+                chp.helloData = hp.peerChannelHelloData;
                 chp.Peer.UpdateLastHeardFrom();
                 if ( msg.msgType == P2pNetMessage.MsgHello)
                 {
@@ -500,7 +506,7 @@ namespace P2pNet
                     SendHello(chp.P2pId, chp.ChannelId, false); // we don;t want a reply
                 }
                 logger.Verbose($"_OnHelloMsg - calling client.");
-                client.OnPeerJoined(chp.ChannelId, chp.P2pId, hp.channelHelloData);
+                client.OnPeerJoined(chp.ChannelId, chp.P2pId, hp.peerChannelHelloData);
             }
         }
 
