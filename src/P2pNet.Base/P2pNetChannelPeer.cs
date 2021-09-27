@@ -179,7 +179,7 @@ namespace P2pNet
         public List<P2pNetChannelPeer> ChannelPeersForPeer(string peerId) => ChannelPeers.Values.Where(cp => cp.P2pId == peerId).ToList();
         public List<string> CpKeysForChannel(string chanId) => ChannelPeers.Where(kvp => kvp.Value.Channel.Id == chanId).Select(kvp => kvp.Key).ToList();
 
-        // Peer stuff
+         // Peer stuff
         public bool IsKnownPeer(string peerId) => Peers.ContainsKey(peerId);
         public P2pNetPeer GetPeer(string peerId)
         {
