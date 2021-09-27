@@ -44,7 +44,9 @@ namespace P2pNet
         // Note that a P2pNetClient never sees this
         // TODO: How to make this "internal" and still allow P2pNetBase._Send() to be protected
         public const string MsgHello = "HELLO"; // recipient should reply
-        public const string MsgHelloReply = "HRPLY"; // do not reply
+        public const string MsgHelloReply = "HRPLY"; // do not reply to this
+        public const string MsgHelloBadChannelInfo = "BADINF"; // On MsgHello with bad channel info send this as a reply (don't add peer)
+        public const string MsgHelloChannelFull = "CHFULL"; // On MsgHello in a full channel send this as a reply (don't add peer)
         public const string MsgGoodbye = "BYE";
         public const string MsgPing = "PING";
         public const string MsgAppl = "APPMSG";
@@ -94,9 +96,7 @@ namespace P2pNet
         protected string localId;
         protected IP2pNetClient client;
         protected string connectionStr; // Transport-dependent format
-
         protected P2pNetChannelPeerPairings channelPeers;
-
         protected Dictionary<string, long> lastMsgIdSent; // last Id sent to each channel. Msg IDs are serial, and PER CHANNEL
         public UniLogger logger;
 
@@ -130,10 +130,6 @@ namespace P2pNet
         protected void OnNetworkJoined(P2pNetChannelInfo mainChannelInfo, string localHelloData)
         {
             // called back from _Join() when it is done - which might be async
-            // TODO: decide if this is just stupid
-            // For some reason I'm trying to keep async/await out of this so maybe it can be used
-            // as an example for porting to languages that don't support it - THAT's what might be
-            // dumb.
             AddChannel(mainChannelInfo, localHelloData ); // Set up channel AND listen
             channelPeers.SetMainChannel( channelPeers.GetChannel(mainChannelInfo.id));
             client.OnPeerJoined( mainChannelInfo.id, localId, localHelloData);
@@ -298,7 +294,7 @@ namespace P2pNet
                 logger.Info($"Listening to channel: {chanInfo.id}");
                 ImplementationListen(chan.Id);
                 if (chan.Info.pingMs > 0)
-                    SendHello(chan.Id, chan.Id, true); // broadcast
+                    SendHelloMsg(chan.Id, chan.Id ); // broadcast
             }
         }
 
@@ -367,8 +363,16 @@ namespace P2pNet
                     OnAppMsg(msgChannel, msg);
                     break;
                 case P2pNetMessage.MsgHello:
-                case P2pNetMessage.MsgHelloReply:
                     OnHelloMsg(msgChannel, msg);
+                    break;
+                case P2pNetMessage.MsgHelloReply:
+                    OnHelloReplyMsg(msgChannel, msg);
+                    break;
+                case P2pNetMessage.MsgHelloBadChannelInfo:
+                    OnHelloBadInfoMsg(msgChannel, msg);
+                    break;
+                case P2pNetMessage.MsgHelloChannelFull:
+                    OnHelloChannelFullMsg(msgChannel, msg);
                     break;
                 case P2pNetMessage.MsgGoodbye:
                     OnByeMsg(msgChannel, msg);
@@ -380,9 +384,6 @@ namespace P2pNet
                     OnSyncMsg(msg.srcId, msg);
                     break;
             }
-
-            // TODO: should there be a log message if the peer isn't found?
-
         }
 
         protected void OnAppMsg(string msgChanId, P2pNetMessage msg)
@@ -470,25 +471,59 @@ namespace P2pNet
 
         // Some specific messages
 
-        protected void SendHello(string destChannel, string subjectChannel, bool requestReply)
+        protected void SendHelloMsg(string destChannel, string subjectChannel, string helloMsgType = P2pNetMessage.MsgHello)
         {
             // When joining a new channel, destChannel and subjectChannel are typically the same.
             // When replying, or sending to a single peer, the destChannel is usually the recipient peer
             P2pNetChannel chan = channelPeers.GetChannel(subjectChannel);
-            string msgType = requestReply ?  P2pNetMessage.MsgHello : P2pNetMessage.MsgHelloReply;
-            DoSend(destChannel, msgType, JsonConvert.SerializeObject(new HelloPayload(chan.Info, chan.LocalHelloData)));
+            DoSend(destChannel, helloMsgType, JsonConvert.SerializeObject(new HelloPayload(chan.Info, chan.LocalHelloData)));
         }
 
         protected void OnHelloMsg(string unusedSrcChannel, P2pNetMessage msg)
         {
             HelloPayload hp = JsonConvert.DeserializeObject<HelloPayload>(msg.payload);
             string senderId = msg.srcId;
+            P2pNetChannel channel = channelPeers.GetChannel(hp.channelInfo.id);
 
-            P2pNetChannelInfo localInfo = channelPeers.GetChannel(hp.channelInfo.id)?.Info;
-            bool channelInfoIsGood =  localInfo.IsEquivalentTo(hp.channelInfo);
+            if ( !channel.Info.IsEquivalentTo(hp.channelInfo) )
+            {
+                logger.Warn($"OnHelloMsg - Bad channel info in HELLO for {channel.Id} from peer {SID(senderId)}" );
+                SendHelloMsg(senderId, channel.Id, P2pNetMessage.MsgHelloBadChannelInfo);
+                return;
+            }
 
-            if (!channelInfoIsGood)
-                throw new ArgumentException("Channel info mismatch");
+            // Is the channel full?
+            if ( (channel.Info.maxPeers > 0) && (channelPeers.PeersForChannel(channel.Id).Count >= channel.Info.maxPeers) )
+            {
+                logger.Warn($"OnHelloMsg() Channel {channel.Id} is FULL. Refuse HELLO" );
+                SendHelloMsg(senderId, channel.Id, P2pNetMessage.MsgHelloChannelFull);
+                return;
+            }
+
+            P2pNetChannelPeer chp = channelPeers.GetChannelPeer(channel.Id, senderId);
+            if (chp == null)
+                chp = channelPeers.AddChannelPeer(channel.Id, senderId);
+
+            if (chp.helloData == null) // It's OK for a peer already in a channel to send hello again - but we'll ignore it
+            {
+                // new peer (to us)
+                logger.Verbose($"_OnHelloMsg - Hello for channel {chp.ChannelId} from peer {SID(chp.P2pId)}" );
+
+                chp.helloData = hp.peerChannelHelloData;
+                chp.Peer.UpdateLastHeardFrom();
+
+                logger.Verbose($"OnHelloMsg - replying directly to {SID(chp.P2pId)} about channel {chp.ChannelId}");
+                SendHelloMsg(chp.P2pId, chp.ChannelId, P2pNetMessage.MsgHelloReply); // This is a reply
+
+                logger.Verbose($"OnHelloMsg - calling client to report new peer.");
+                client.OnPeerJoined(chp.ChannelId, chp.P2pId, hp.peerChannelHelloData);
+            }
+        }
+
+        protected void OnHelloReplyMsg(string unusedSrcChannel, P2pNetMessage msg)
+        {
+            HelloPayload hp = JsonConvert.DeserializeObject<HelloPayload>(msg.payload);
+            string senderId = msg.srcId;
 
             P2pNetChannelPeer chp = channelPeers.GetChannelPeer(hp.channelInfo.id, senderId);
             if (chp == null)
@@ -496,18 +531,26 @@ namespace P2pNet
 
             if (chp.helloData == null)
             {
-                logger.Verbose($"_OnHelloMsg - Hello for channel {chp.ChannelId} from peer {SID(chp.P2pId)}" );
-
+                logger.Verbose($"OnHelloReplyMsg - HelloReply for channel {chp.ChannelId} from new peer {SID(chp.P2pId)}" );
                 chp.helloData = hp.peerChannelHelloData;
                 chp.Peer.UpdateLastHeardFrom();
-                if ( msg.msgType == P2pNetMessage.MsgHello)
-                {
-                    logger.Verbose($"_OnHelloMsg - replying directly to {SID(chp.P2pId)} about channel {chp.ChannelId}");
-                    SendHello(chp.P2pId, chp.ChannelId, false); // we don;t want a reply
-                }
-                logger.Verbose($"_OnHelloMsg - calling client.");
+                logger.Verbose($"OnHelloReplyMsg - calling client.");
                 client.OnPeerJoined(chp.ChannelId, chp.P2pId, hp.peerChannelHelloData);
             }
+        }
+
+        protected void OnHelloBadInfoMsg(string srcId, P2pNetMessage msg)
+        {
+            HelloPayload hp = JsonConvert.DeserializeObject<HelloPayload>(msg.payload);
+            logger.Warn($"OnHelloBadInfoMsg() - Bad channel info reported for {hp.channelInfo.id} from peer {SID(msg.srcId)}" );
+        }
+
+        protected void OnHelloChannelFullMsg(string srcId, P2pNetMessage msg)
+        {
+            HelloPayload hp = JsonConvert.DeserializeObject<HelloPayload>(msg.payload);
+            logger.Warn($"OnHelloChannelFullMsg() - Channel full reported for {hp.channelInfo.id} from peer {SID(msg.srcId)}" );
+
+            // FIXME: need to leave the channel and return the error (need a new exeption?)
         }
 
         protected void SendPing(string chanId)
