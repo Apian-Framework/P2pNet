@@ -206,7 +206,6 @@ namespace P2pNet
             {
                 logger.Warn($"Update - ChannelPeer {SID(chp.P2pId)}/{chp.ChannelId} timed out. Notifying client and removing peer.");
                 client.OnPeerLeft( chp.ChannelId, chp.P2pId);
-
                 channelPeers.RemoveChannelPeer(chp);
             }
 
