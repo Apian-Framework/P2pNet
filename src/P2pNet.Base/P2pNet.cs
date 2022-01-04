@@ -10,88 +10,8 @@ namespace P2pNet
     // ReSharper disable InconsistentNaming
     // Problem here is that "p2p" is a word: "peer-to-peer" and the default .NET ReSharper rules dealing with digits result
     // in dumb stuff, like a field called "_p2PFooBar" with the 2nd P capped.
-    public interface IP2pNetClient
-    {
-        void OnPeerJoined(string channel, string p2pId, string helloData);
-        void OnPeerMissing(string channel, string p2pId);
-        void OnPeerReturned(string channel, string p2pId);
-        void OnPeerLeft(string channel, string p2pId);
-        void OnPeerSync(string channel, string p2pId, long clockOffsetMs, long netLagMs);
-        void OnClientMsg(string from, string toChan, long msSinceSent, string payload);
-    }
 
-    public interface IP2pNet
-    {
-        // ReSharper disable UnusedMember.Global
-        void Update(); // needs to be called periodically (drives message pump + group handling)
-        string GetId(); // Local peer's P2pNet ID.
-        P2pNetChannel GetMainChannel();
-        void Join(P2pNetChannelInfo mainChannel, string helloData);
-        void AddSubchannel(P2pNetChannelInfo subChannel, string helloData);
-        void RemoveSubchannel(string subChannelId);
-        List<string> GetPeerIds();
-        string GetPeerData(string channelId, string peerId); // Remote peer's HELLO data
-        PeerClockSyncData GetPeerClockSyncData(string peerId);
-        void Leave();
-        void Send(string chan, string payload);
-        void AddPeer(string peerId);
-        void RemovePeer(string peerId);
-        // ReSharper enable UnusedMember.Global
-    }
-
-     public class P2pNetMessage
-    {
-        // Note that a P2pNetClient never sees this
-        // TODO: How to make this "internal" and still allow P2pNetBase._Send() to be protected
-        public const string MsgHello = "HELLO"; // recipient should reply
-        public const string MsgHelloReply = "HRPLY"; // do not reply to this
-        public const string MsgHelloBadChannelInfo = "BADINF"; // On MsgHello with bad channel info send this as a reply (don't add peer)
-        public const string MsgHelloChannelFull = "CHFULL"; // On MsgHello in a full channel send this as a reply (don't add peer)
-        public const string MsgGoodbye = "BYE";
-        public const string MsgPing = "PING";
-        public const string MsgAppl = "APPMSG";
-        public const string MsgSync = "SYNC"; // clock sync
-
-
-        public string dstChannel;
-        public string srcId;
-        public long msgId;
-        public long sentTime; // millisecs timestamp at sender
-        public long rcptTime; // millisecs timestamp at recipient (here)
-        public string msgType;
-        public string payload; // string or json-encoded application object
-
-        public P2pNetMessage(string _dstChan, string _srcId, long _msgId, string _msgType, string _payload)
-        {
-            dstChannel = _dstChan;
-            srcId = _srcId;
-            msgId = _msgId;
-            msgType = _msgType;
-            payload = _payload;
-            sentTime = -1; // gets set on send
-            rcptTime = -1; // gets set on receipt
-        }
-    }
-
-    public class HelloPayload
-    {
-        public P2pNetChannelInfo channelInfo;
-        public string peerChannelHelloData;
-        public HelloPayload(P2pNetChannelInfo chInfo, string helloData) {channelInfo = chInfo; peerChannelHelloData = helloData;}
-    }
-
-    public class SyncPayload
-    {
-        public long t0; //  t0 to originator
-        public long t1; // t1 for org
-        public long t2; //t2 for org, t0 for recip
-        public long t3; // t3 for org, t1 for recip
-        public long t4; // t2 for recip - t2 for it doesn't need to be in payload
-        public SyncPayload() {t0=0; t1=0; t2=0; t3=0;}
-        public override string ToString() => $"{{t0:{t0} t1:{t1} t2:{t2} t3:{t3}}}";
-    }
-
-    public abstract class P2pNetBase : IP2pNet
+     public abstract class P2pNetBase : IP2pNet
     {
         protected string localId;
         protected IP2pNetClient client;
@@ -144,7 +64,7 @@ namespace P2pNet
 
         public List<string> GetPeerIds() => channelPeers.GetPeerIds();
         public string GetPeerData(string channelId, string peerId) => channelPeers.GetChannelPeer(channelId, peerId)?.helloData;
-        public PeerClockSyncData GetPeerClockSyncData(string peerId) => channelPeers.GetPeerClockSyncData(peerId);
+        public P2pNetClockSyncData GetPeerClockSyncData(string peerId) => channelPeers.GetPeerClockSyncData(peerId);
 
         public void Update()
         {

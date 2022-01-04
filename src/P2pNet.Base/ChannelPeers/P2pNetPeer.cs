@@ -10,22 +10,6 @@ namespace P2pNet
     // Problem here is that "p2p" is a word: "peer-to-peer" and the default .NET ReSharper rules dealing with digits result
     // in dumb stuff, like a field called "_p2PFooBar" with the 2nd P capped.
 
-    public class PeerClockSyncData
-    {
-        // ReSharper disable MemberCanBePrivate.Global
-        public string peerId;
-        public long networkLagMs; // round trip time / 2
-        public long clockOffsetMs; // localTime + offset = peerTime
-        public long msSinceLastSync;
-        public PeerClockSyncData(string pid, long since, long offset, long lag)
-        {
-            peerId = pid;
-            msSinceLastSync = since;
-            networkLagMs = lag;
-            clockOffsetMs = offset;
-        }
-    }
-
     public class P2pNetPeer
     {
         public string p2pId;
@@ -60,6 +44,7 @@ namespace P2pNet
                 || (lastClockSyncMs > 0 && P2pNetDateTime.NowMs-lastClockSyncMs > syncTimeoutMs);
         }
 
+        //FIXME: move to clocksyncdata class
         public void UpdateClockSync(long t0, long t1, long t2, long t3)
         {
             long theta = ((t1 - t0) + (t2-t3)) / 2; // offset
