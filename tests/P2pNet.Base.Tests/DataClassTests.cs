@@ -13,19 +13,19 @@ namespace P2pNetBaseTests
     // These are trivial tests for classes which are pretty much just data stores
     //
     [TestFixture]
-    public class PeerClockSyncDataTests
+    public class P2pNetClockSyncDataTests
     {
         // Only has a constructor test
         [Test]
         public void ClockSyncData_ConstructorWorks()
         {
-            // public PeerClockSyncData(string pid, long since, long offset, long lag)
+            // public P2pNetClockSyncData(string pid, long since, long offset, long lag)
             const string pid = "pid";
             const long since = 123456,
                 offfset = 3245,
                 lag = 250;
 
-            PeerClockSyncData syncData = new PeerClockSyncData(pid, since, offfset, lag);
+            P2pNetClockSyncData syncData = new P2pNetClockSyncData(pid, since, offfset, lag);
             Assert.That(syncData, Is.Not.Null);
             Assert.That(syncData.peerId, Is.EqualTo(pid));
             Assert.That(syncData.msSinceLastSync, Is.EqualTo(since));
