@@ -116,11 +116,11 @@ namespace P2pNet
         }
 
         public List<string> GetPeerIds() => Peers.Keys.ToList();
-        public P2pNetClockSyncData GetPeerClockSyncData(string peerId)
+        public PeerClockSyncInfo GetPeerClockSyncData(string peerId)
         {
             try {
                 P2pNetPeer p = Peers[peerId];
-                return new P2pNetClockSyncData(p.p2pId, p.MsSinceClockSync, p.ClockOffsetMs, p.NetworkLagMs);
+                return new PeerClockSyncInfo(p.p2pId, p.MsSinceClockSync, p.ClockOffsetMs, p.NetworkLagMs);
             } catch(KeyNotFoundException) {
                 return null;
             }

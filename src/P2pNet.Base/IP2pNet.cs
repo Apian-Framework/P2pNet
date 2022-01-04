@@ -13,7 +13,7 @@ namespace P2pNet
         void RemoveSubchannel(string subChannelId);
         List<string> GetPeerIds();
         string GetPeerData(string channelId, string peerId); // Remote peer's HELLO data
-        P2pNetClockSyncData GetPeerClockSyncData(string peerId);
+        PeerClockSyncInfo GetPeerClockSyncData(string peerId);
         void Leave();
         void Send(string chan, string payload);
         void AddPeer(string peerId);

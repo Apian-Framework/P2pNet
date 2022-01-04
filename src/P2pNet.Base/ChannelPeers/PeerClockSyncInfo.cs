@@ -1,14 +1,13 @@
 namespace P2pNet
 {
 
-    public class P2pNetClockSyncData
+    public class PeerClockSyncInfo
     {
-        // ReSharper disable MemberCanBePrivate.Global
         public string peerId;
         public long networkLagMs; // round trip time / 2
-        public long clockOffsetMs; // localTime + offset = peerTime
+        public long clockOffsetMs; // localTime + offset = remoteTime
         public long msSinceLastSync;
-        public P2pNetClockSyncData(string pid, long since, long offset, long lag)
+        public PeerClockSyncInfo(string pid, long since, long offset, long lag)
         {
             peerId = pid;
             msSinceLastSync = since;

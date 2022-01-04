@@ -64,7 +64,7 @@ namespace P2pNet
 
         public List<string> GetPeerIds() => channelPeers.GetPeerIds();
         public string GetPeerData(string channelId, string peerId) => channelPeers.GetChannelPeer(channelId, peerId)?.helloData;
-        public P2pNetClockSyncData GetPeerClockSyncData(string peerId) => channelPeers.GetPeerClockSyncData(peerId);
+        public PeerClockSyncInfo GetPeerClockSyncData(string peerId) => channelPeers.GetPeerClockSyncData(peerId);
 
         public void Update()
         {
@@ -329,7 +329,7 @@ namespace P2pNet
 
             if (peer != null)
             {
-                // I there's clock sync for the channel the figure out when the msg was sent
+                // I there's clock sync data for the channel the figure out when the msg was sent
                 long realMsSinceSend = -1; // means no clock sync
                 if (channel != null && channel.IsSyncingClocks)
                 {
