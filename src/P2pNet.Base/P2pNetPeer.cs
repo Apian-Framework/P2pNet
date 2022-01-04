@@ -33,7 +33,7 @@ namespace P2pNet
         protected long lastClockSyncMs; // so we know if we're syncing
 
         public  long NetworkLagMs {get; private set;} // round trip time / 2
-        public long ClockOffsetMs {get; private set;}// localTime + offset = peerTime
+        public long ClockOffsetMs {get; private set;}// local systime + offset = remote peer's sysTime
         public P2pNetPeer(string _p2pId)
         {
             p2pId = _p2pId;
