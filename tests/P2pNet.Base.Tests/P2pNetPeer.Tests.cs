@@ -128,14 +128,14 @@ namespace P2pNetBaseTests
             payload.t2 = t2;
             payload.t3 = t3;
 
-            // In real life we'd send the payload back, but we already have all the info we nee locally
+            // In real life we'd send the payload back, but we already have all the info we need locally
             peer.CompleteClockSync(payload.t0, payload.t1, payload.t2, payload.t3);
 
             long computedLag = ((t3 - t0) - (t2 - t1)) / 2;
             long computedTheta = ((t1 - t0) + (t2 - t3)) / 2;
 
-            long reportedLag = prevPeerLag == 0 ? computedLag : (prevPeerLag + computedLag)/2;
-            long reportedOffset = prevPeerOffset == 0 ? computedTheta : (prevPeerOffset+computedTheta)/2;
+            long reportedLag = prevPeerLag == 0 ? computedLag : PeerClockSyncCalc.NormalEwma(computedLag, prevPeerLag, 8);
+            long reportedOffset = prevPeerOffset == 0 ? computedTheta : PeerClockSyncCalc.NormalEwma(computedTheta, prevPeerOffset, 8);
 
             Assert.That(peer.ClockOffsetMs, Is.EqualTo(reportedOffset));
             Assert.That(peer.NetworkLagMs, Is.EqualTo(reportedLag));

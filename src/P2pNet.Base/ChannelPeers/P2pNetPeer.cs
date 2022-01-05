@@ -103,19 +103,32 @@ namespace P2pNet
             currentStats.timeStampMs = P2pNetDateTime.NowMs;
 
             // Set if unset, else compute
-            currentStats.avgOffsetMs = (currentStats.sampleCount == 0) ? theta : TerribleStupidEwma(theta, currentStats.avgOffsetMs);
-            currentStats.avgLagMs = (NetworkLagMs == 0) ? lag : TerribleStupidEwma(lag,  currentStats.avgLagMs);
+//            currentStats.avgOffsetMs = (currentStats.sampleCount == 0) ? theta : TerribleStupidEwma(theta, currentStats.avgOffsetMs);
+//            currentStats.avgLagMs = (NetworkLagMs == 0) ? lag : TerribleStupidEwma(lag,  currentStats.avgLagMs);
+
+            currentStats.avgOffsetMs = (currentStats.sampleCount == 0) ? theta : NormalEwma(theta, currentStats.avgOffsetMs, 8);
+            currentStats.avgLagMs = (NetworkLagMs == 0) ? lag : NormalEwma(lag,  currentStats.avgLagMs, 8);
 
             currentStats.sampleCount++;
         }
 
 
         //  avg w/prev avg - lame-ass EWMA
-        protected long TerribleStupidEwma(long newVal, long oldAvg)
+        public static long TerribleStupidEwma(long newVal, long oldAvg)
         {
             return (newVal + oldAvg) / 2;
         }
 
+        // normal, fixed-increment EWMA
+        public static long NormalEwma(long newVal, long oldAvg, long avgOverSampleCount)
+        {
+            // alpha is is 2 / (avgOverSampleCount - 1))
+            float alpha = 2.0f / ((float)avgOverSampleCount - 1);
+            float delta = newVal - oldAvg;
+            long avg = oldAvg + (long)(alpha * delta);
+
+            return avg;
+        }
 
 
     }
