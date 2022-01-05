@@ -512,7 +512,7 @@ namespace P2pNet
             P2pNetPeer peer = channelPeers.GetPeer(dest);
             if (peer != null)   // seen it happen
             {
-                peer.ReportSyncProgress();
+                peer.ReportInterimSyncProgress();
                 // payload "sent time" gets set by receiver.
                 DoSend(dest, P2pNetMessage.MsgSync, JsonConvert.SerializeObject(payload));
             }
@@ -529,14 +529,14 @@ namespace P2pNet
                     // This was the first hop from the originator
                     payload.t0 = msg.sentTime;
                     payload.t1 = msg.rcptTime;
-                    peer.ReportSyncProgress();
+                    peer.ReportInterimSyncProgress();
                     DoSend(from, P2pNetMessage.MsgSync, JsonConvert.SerializeObject(payload)); // send reply
                 } else if (payload.t2 == 0) {
                     // We are the originator getting our sync back
                     payload.t2 = msg.sentTime;
                     payload.t3 = msg.rcptTime;
                     DoSend(from, P2pNetMessage.MsgSync, JsonConvert.SerializeObject(payload)); // send reply
-                    peer.ComputeClockSync(payload.t0, payload.t1, payload.t2, payload.t3);
+                    peer.CompleteClockSync(payload.t0, payload.t1, payload.t2, payload.t3);
                     PeerClockSyncInfo csi = peer.ClockSyncInfo;
                     logger.Info($"Synced (org) {SID(from) } Lag: {csi.networkLagMs}, Offset: {csi.clockOffsetMs}");
                     foreach (P2pNetChannel ch in channelPeers.ChannelsForPeer(peer.p2pId))
@@ -548,7 +548,7 @@ namespace P2pNet
 
                } else {
                     // we're the recipient and it's done
-                    peer.ComputeClockSync(payload.t2, payload.t3, msg.sentTime, msg.rcptTime);
+                    peer.CompleteClockSync(payload.t2, payload.t3, msg.sentTime, msg.rcptTime);
                     PeerClockSyncInfo csi = peer.ClockSyncInfo;
                     logger.Info($"Synced (rcp) {SID(from)} Lag: {csi.networkLagMs}, Offset: {csi.clockOffsetMs}");
                     // TODO: fix the following copypasta
