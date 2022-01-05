@@ -71,7 +71,7 @@ namespace P2pNet
             currentStats.sampleCount = 0;
         }
 
-        protected long lastActivityMs; // so we know if we're currently syncing or have never synced - and unlike flags will
+        public long lastActivityMs; // so we know if we're currently syncing or have never synced - and unlike flags will
                                        // time out if a sync is interrupted
 
         public  long NetworkLagMs => currentStats.avgLagMs;// round trip time / 2

@@ -21,8 +21,7 @@ namespace P2pNetBaseTests
 
             public long NetworkLagMs => clockSync.NetworkLagMs;
             public long ClockOffsetMs => clockSync.ClockOffsetMs;
-            public bool CurrentlySyncing => clockSync.CurrentlySyncing;
-            public long MsSinceClockSync => clockSync.MsSinceClockSync;
+            public long LatestSyncActivityMs => clockSync.lastActivityMs;
 
         }
 
@@ -70,11 +69,11 @@ namespace P2pNetBaseTests
             // step 2:
             // Act as if we have received an initial msg with just t0 set..
             // in _OnSyncMsg we would set t1 when we receoved it (our clock)
-            // and call peer.ReportSyncProgeress()
+            // and call peer.ReportInterimSyncProgeress()
             P2pNetDateTime.Now =() => new DateTime(t1 * TimeSpan.TicksPerMillisecond); // pretend its t1
             payload.t1 = t1; // we set this in _OnSyncMsg()
-            peer.ReportSyncProgress(); // sets peer.lastClockSyncMs to -nowMs
-            Assert.That(peer.CurrentlySyncing, Is.True);
+            peer.ReportInterimSyncProgress(); // sets peer.lastClockSyncMs to -nowMs
+
             payload.t2 = t2; // local send time (set in  _send())
 
             // Now pretend were remote again, and have gotten the payload with t0 and t1 set
@@ -82,9 +81,7 @@ namespace P2pNetBaseTests
 
             // we get the payload back...
             P2pNetDateTime.Now =() => new DateTime(t5 * TimeSpan.TicksPerMillisecond);
-            peer.ComputeClockSync(payload.t2, payload.t3, t4, t5);
-
-            Assert.That(peer.CurrentlySyncing, Is.False);
+            peer.CompleteClockSync(payload.t2, payload.t3, t4, t5);
 
             long computedLag = ((t5 - t2) - (t4 - t3)) / 2;
             long computedTheta = ((t3 - t2) + (t4 - t5)) / 2;
@@ -117,10 +114,10 @@ namespace P2pNetBaseTests
 
              // step 1: We are initiating.
              // _SendSync()
-             //    calls peer.ReportSyncProgress()
+             //    calls peer.ReportInterimSyncProgress()
              //    sends an empty sync paylod
             P2pNetDateTime.Now =() => new DateTime(t0 * TimeSpan.TicksPerMillisecond); // pretend its t0
-            peer.ReportSyncProgress(); // sets peer.lastClockSyncMs to -nowMs
+            peer.ReportInterimSyncProgress(); // sets peer.lastClockSyncMs to -nowMs
 
             // Step 2: On the remote peer payload t0 and t1 set set and sent back
             payload.t0 = t0;
@@ -132,9 +129,7 @@ namespace P2pNetBaseTests
             payload.t3 = t3;
 
             // In real life we'd send the payload back, but we already have all the info we nee locally
-            peer.ComputeClockSync(payload.t0, payload.t1, payload.t2, payload.t3);
-
-            Assert.That(peer.CurrentlySyncing, Is.False);
+            peer.CompleteClockSync(payload.t0, payload.t1, payload.t2, payload.t3);
 
             long computedLag = ((t3 - t0) - (t2 - t1)) / 2;
             long computedTheta = ((t1 - t0) + (t2 - t3)) / 2;
@@ -165,7 +160,7 @@ namespace P2pNetBaseTests
             TestPeer peer = CreateDefaultTestPeer();
             Assert.That(peer, Is.Not.Null);
             Assert.That(peer.ClockNeedsSync(defaultSyncMs), Is.True);
-            Assert.That(peer.CurrentlySyncing, Is.False);
+            Assert.That(peer.LatestSyncActivityMs, Is.EqualTo(0));
 
             SyncTestParams testParams = new SyncTestParams()
             {
@@ -192,7 +187,6 @@ namespace P2pNetBaseTests
             TestPeer peer = CreateDefaultTestPeer();
             Assert.That(peer, Is.Not.Null);
             Assert.That(peer.ClockNeedsSync(defaultSyncMs), Is.True);
-            Assert.That(peer.CurrentlySyncing, Is.False);
 
             SyncTestParams testParams = new SyncTestParams()
             {
@@ -215,8 +209,7 @@ namespace P2pNetBaseTests
             TestPeer peer = CreateDefaultTestPeer();
             Assert.That(peer, Is.Not.Null);
             Assert.That(peer.ClockNeedsSync(defaultSyncMs), Is.True);
-            Assert.That(peer.CurrentlySyncing, Is.False);
-            Assert.That(peer.MsSinceClockSync, Is.EqualTo(-1));
+            Assert.That(peer.LatestSyncActivityMs, Is.EqualTo(0));
 
             SyncTestParams testParams = new SyncTestParams()
             {
@@ -232,7 +225,7 @@ namespace P2pNetBaseTests
             _Do_RemoteInitiatedClockSync(peer, testParams);
 
             Assert.That(peer.ClockNeedsSync(defaultSyncMs), Is.False);
-            Assert.That(peer.MsSinceClockSync, Is.EqualTo(0)); // local "clock" hasn't moved
+            Assert.That(peer.ClockSyncInfo.msSinceLastSync, Is.EqualTo(0)); // local "clock" hasn't moved
 
             SyncTestParams testParams2 = new SyncTestParams()
             {
@@ -247,7 +240,6 @@ namespace P2pNetBaseTests
 
             P2pNetDateTime.Now =() => new DateTime(testParams2.localBaseMs * TimeSpan.TicksPerMillisecond);
             Assert.That(peer.ClockNeedsSync(defaultSyncMs), Is.True);
-            Assert.That(peer.CurrentlySyncing, Is.False);
 
             _Do_LocalInitiatedClockSync(peer, testParams2);
 
