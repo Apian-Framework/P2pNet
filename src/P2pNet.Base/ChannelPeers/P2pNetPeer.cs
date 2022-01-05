@@ -14,13 +14,12 @@ namespace P2pNet
     {
         public string p2pId;
 
-        protected long lastClockSyncMs; // so we know if we're syncing
+        public PeerClockSyncCalc clockSync;
 
-        public  long NetworkLagMs {get; private set;} // round trip time / 2
-        public long ClockOffsetMs {get; private set;}// local systime + offset = remote peer's sysTime
         public P2pNetPeer(string _p2pId)
         {
             p2pId = _p2pId;
+            clockSync = new PeerClockSyncCalc();
         }
 
         // Ping/Timeout
@@ -31,12 +30,31 @@ namespace P2pNet
         public void UpdateLastSentTo() =>  LastSentToTs = P2pNetDateTime.NowMs;
 
         // Clock sync
+        public PeerClockSyncInfo ClockSyncInfo => clockSync.GetClockSyncInfo(p2pId); // why not just make this on Compute?
+
+        //public  long NetworkLagMs => clockSync.NetworkLagMs;
+        //public long ClockOffsetMs => clockSync.ClockOffsetMs;
+
+        public bool ClockNeedsSync(int syncTimeoutMs) => clockSync.ClockNeedsSync(syncTimeoutMs);
+        public void ReportSyncProgress() => clockSync.ReportSyncProgress();
+        public void ComputeClockSync(long t0, long t1, long t2, long t3) => clockSync.Compute(t0, t1, t2, t3);
+    }
+
+    public class PeerClockSyncCalc
+    {
         public const int kNeverSynced = -1;
         public const int kSyncInProgress = -2;
-        public long MsSinceClockSync { get => lastClockSyncMs == 0 ? kNeverSynced : (CurrentlySyncing() ? kSyncInProgress :   P2pNetDateTime.NowMs - lastClockSyncMs); }
+        protected long lastClockSyncMs; // so we know if we're syncing
+
+        public  long NetworkLagMs {get; private set;} // round trip time / 2
+        public long ClockOffsetMs {get; private set;}// local systime + offset = remote peer's sysTime
+
+        public long MsSinceClockSync { get => lastClockSyncMs == 0 ? kNeverSynced : (CurrentlySyncing ? kSyncInProgress :   P2pNetDateTime.NowMs - lastClockSyncMs); }
+
+        public PeerClockSyncInfo GetClockSyncInfo(string p2pId) => new PeerClockSyncInfo(p2pId, MsSinceClockSync, ClockOffsetMs, NetworkLagMs);
 
         public void ReportSyncProgress() { lastClockSyncMs = -P2pNetDateTime.NowMs;} // negative means in progress
-        public bool CurrentlySyncing() => lastClockSyncMs < 0;
+        public bool CurrentlySyncing => lastClockSyncMs < 0;
         public bool ClockNeedsSync(int syncTimeoutMs)
         {
             // either not set or too long ago and not currently in progress
@@ -45,7 +63,7 @@ namespace P2pNet
         }
 
         //FIXME: move to clocksyncdata class
-        public void UpdateClockSync(long t0, long t1, long t2, long t3)
+        public void Compute(long t0, long t1, long t2, long t3)
         {
             long theta = ((t1 - t0) + (t2-t3)) / 2; // offset
             long lag = ((t3 - t0) - (t2-t1)) / 2;
@@ -55,7 +73,6 @@ namespace P2pNet
             NetworkLagMs = (NetworkLagMs == 0) ? lag : (lag + NetworkLagMs) / 2;
             lastClockSyncMs = P2pNetDateTime.NowMs;
         }
-
     }
 
 }

@@ -15,9 +15,21 @@ namespace P2pNetBaseTests
         const string defaultP2pId = "peerP2pId";
         const int  defaultSyncMs = 19991;
 
-        public P2pNetPeer CreateDefaultTestPeer()
+        public class TestPeer : P2pNetPeer
         {
-            P2pNetPeer peer = new P2pNetPeer(defaultP2pId);
+            public TestPeer( string p2pId) : base(p2pId) {}
+
+            public long NetworkLagMs => clockSync.NetworkLagMs;
+            public long ClockOffsetMs => clockSync.ClockOffsetMs;
+            public bool CurrentlySyncing => clockSync.CurrentlySyncing;
+            public long MsSinceClockSync => clockSync.MsSinceClockSync;
+
+        }
+
+
+        public TestPeer CreateDefaultTestPeer()
+        {
+            TestPeer peer = new TestPeer(defaultP2pId);
             Assert.That(peer, Is.Not.Null);
             Assert.That(peer.p2pId, Is.EqualTo(defaultP2pId));
             return peer;
@@ -34,7 +46,7 @@ namespace P2pNetBaseTests
           public long msg2Lag;  // reply2 net lag (org->rcp)
         }
 
-        public void _Do_RemoteInitiatedClockSync(P2pNetPeer peer, SyncTestParams sp)
+        public void _Do_RemoteInitiatedClockSync(TestPeer peer, SyncTestParams sp)
         {
             long prevPeerLag = peer.NetworkLagMs;  // used at bottom
             long prevPeerOffset = peer.ClockOffsetMs;
@@ -70,7 +82,7 @@ namespace P2pNetBaseTests
 
             // we get the payload back...
             P2pNetDateTime.Now =() => new DateTime(t5 * TimeSpan.TicksPerMillisecond);
-            peer.UpdateClockSync(payload.t2, payload.t3, t4, t5);
+            peer.ComputeClockSync(payload.t2, payload.t3, t4, t5);
 
             Assert.That(peer.CurrentlySyncing, Is.False);
 
@@ -85,7 +97,7 @@ namespace P2pNetBaseTests
         }
 
 
-        public void _Do_LocalInitiatedClockSync(P2pNetPeer peer, SyncTestParams sp)
+        public void _Do_LocalInitiatedClockSync(TestPeer peer, SyncTestParams sp)
         {
             long prevPeerLag = peer.NetworkLagMs;  // used at bottom
             long prevPeerOffset = peer.ClockOffsetMs;
@@ -120,7 +132,7 @@ namespace P2pNetBaseTests
             payload.t3 = t3;
 
             // In real life we'd send the payload back, but we already have all the info we nee locally
-            peer.UpdateClockSync(payload.t0, payload.t1, payload.t2, payload.t3);
+            peer.ComputeClockSync(payload.t0, payload.t1, payload.t2, payload.t3);
 
             Assert.That(peer.CurrentlySyncing, Is.False);
 
@@ -150,7 +162,7 @@ namespace P2pNetBaseTests
         // Exercise the peer clock sync internals
         public void P2pNetPeer_RemoteInitiatedClockSync()
         {
-            P2pNetPeer peer = CreateDefaultTestPeer();
+            TestPeer peer = CreateDefaultTestPeer();
             Assert.That(peer, Is.Not.Null);
             Assert.That(peer.ClockNeedsSync(defaultSyncMs), Is.True);
             Assert.That(peer.CurrentlySyncing, Is.False);
@@ -177,7 +189,7 @@ namespace P2pNetBaseTests
         [Test]
         public void P2pNetPeer_LocalInitiatedClockSync()
         {
-            P2pNetPeer peer = CreateDefaultTestPeer();
+            TestPeer peer = CreateDefaultTestPeer();
             Assert.That(peer, Is.Not.Null);
             Assert.That(peer.ClockNeedsSync(defaultSyncMs), Is.True);
             Assert.That(peer.CurrentlySyncing, Is.False);
@@ -200,7 +212,7 @@ namespace P2pNetBaseTests
         public void P2pNetPeer_ClockSyncBothWays()
         {
             // Different branches happen if a clock has been synced more than once
-            P2pNetPeer peer = CreateDefaultTestPeer();
+            TestPeer peer = CreateDefaultTestPeer();
             Assert.That(peer, Is.Not.Null);
             Assert.That(peer.ClockNeedsSync(defaultSyncMs), Is.True);
             Assert.That(peer.CurrentlySyncing, Is.False);
@@ -247,7 +259,7 @@ namespace P2pNetBaseTests
             long testMs = 63743025676711; // some time during Dec 8, 2020
             DateTime testDT = new DateTime(testMs *  TimeSpan.TicksPerMillisecond);
 
-            P2pNetPeer peer = CreateDefaultTestPeer();
+            TestPeer peer = CreateDefaultTestPeer();
             Assert.That(peer.LastHeardFromTs, Is.EqualTo(0));
             Assert.That(peer.LastSentToTs, Is.EqualTo(0));
 

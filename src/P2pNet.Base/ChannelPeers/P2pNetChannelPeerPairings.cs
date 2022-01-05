@@ -119,8 +119,7 @@ namespace P2pNet
         public PeerClockSyncInfo GetPeerClockSyncData(string peerId)
         {
             try {
-                P2pNetPeer p = Peers[peerId];
-                return new PeerClockSyncInfo(p.p2pId, p.MsSinceClockSync, p.ClockOffsetMs, p.NetworkLagMs);
+                return Peers[peerId].ClockSyncInfo;
             } catch(KeyNotFoundException) {
                 return null;
             }
