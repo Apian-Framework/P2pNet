@@ -134,8 +134,8 @@ namespace P2pNetBaseTests
             long computedLag = ((t3 - t0) - (t2 - t1)) / 2;
             long computedTheta = ((t1 - t0) + (t2 - t3)) / 2;
 
-            long reportedLag = prevPeerLag == 0 ? computedLag : PeerClockSyncCalc.NormalEwma(computedLag, prevPeerLag, 8);
-            long reportedOffset = prevPeerOffset == 0 ? computedTheta : PeerClockSyncCalc.NormalEwma(computedTheta, prevPeerOffset, 8);
+            long reportedLag = prevPeerLag == 0 ? computedLag : PeerClockSyncCalc.NormalEwma(computedLag, prevPeerLag, 1, 8);
+            long reportedOffset = prevPeerOffset == 0 ? computedTheta : PeerClockSyncCalc.NormalEwma(computedTheta, prevPeerOffset, 1, 8);
 
             Assert.That(peer.ClockOffsetMs, Is.EqualTo(reportedOffset));
             Assert.That(peer.NetworkLagMs, Is.EqualTo(reportedLag));

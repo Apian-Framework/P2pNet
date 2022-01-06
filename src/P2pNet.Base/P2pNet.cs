@@ -538,7 +538,7 @@ namespace P2pNet
                     DoSend(from, P2pNetMessage.MsgSync, JsonConvert.SerializeObject(payload)); // send reply
                     peer.CompleteClockSync(payload.t0, payload.t1, payload.t2, payload.t3);
                     PeerClockSyncInfo csi = peer.ClockSyncInfo;
-                    logger.Info($"Synced (org) {SID(from) } Lag: {csi.networkLagMs}, Offset: {csi.clockOffsetMs}");
+                    logger.Info($"Synced (org) {SID(from)} Offset: {csi.clockOffsetMs}, Lag: {csi.networkLagMs}");
                     foreach (P2pNetChannel ch in channelPeers.ChannelsForPeer(peer.p2pId))
                     {
                         if (ch.IsSyncingClocks)
@@ -550,7 +550,7 @@ namespace P2pNet
                     // we're the recipient and it's done
                     peer.CompleteClockSync(payload.t2, payload.t3, msg.sentTime, msg.rcptTime);
                     PeerClockSyncInfo csi = peer.ClockSyncInfo;
-                    logger.Info($"Synced (rcp) {SID(from)} Lag: {csi.networkLagMs}, Offset: {csi.clockOffsetMs}");
+                    logger.Info($"Synced (rcp) {SID(from)} Offset: {csi.clockOffsetMs}, Lag: {csi.networkLagMs}");
                     // TODO: fix the following copypasta
                     foreach (P2pNetChannel ch in channelPeers.ChannelsForPeer(peer.p2pId))
                     {

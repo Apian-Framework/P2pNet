@@ -3,6 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using UniLog;
+using static UniLog.UniLogger; // for SID()
 
 namespace P2pNet
 {
@@ -19,7 +20,7 @@ namespace P2pNet
         public P2pNetPeer(string _p2pId)
         {
             p2pId = _p2pId;
-            clockSync = new PeerClockSyncCalc();
+            clockSync = new PeerClockSyncCalc(p2pId);
         }
 
         // Ping/Timeout
@@ -40,7 +41,7 @@ namespace P2pNet
         public void CompleteClockSync(long t0, long t1, long t2, long t3) // Call when sync is finished.
         {
             ReportInterimSyncProgress();
-             clockSync.Compute(t0, t1, t2, t3);
+            clockSync.Compute(t0, t1, t2, t3);
         }
     }
 
@@ -61,14 +62,24 @@ namespace P2pNet
 
             public long avgOffsetMs;
 
+            public void LogStats(UniLogger logger, string statsName)
+            {
+                logger.Verbose($"*** Stats: {statsName}, Count: {sampleCount}, Offset: {avgOffsetMs}, Lag: {avgLagMs}");
+            }
+
         }
 
+        public UniLogger logger;
+        public string p2pId;
         protected TheStats currentStats;
+        protected TheStats testStats; // using this during development to compare
 
-        public PeerClockSyncCalc()
+        public PeerClockSyncCalc(string _p2pId)
         {
+            p2pId = _p2pId;
+            logger = UniLogger.GetLogger("P2pNet");
             currentStats = new TheStats();
-            currentStats.sampleCount = 0;
+            testStats = new TheStats();
         }
 
         public long lastActivityMs; // so we know if we're currently syncing or have never synced - and unlike flags will
@@ -97,33 +108,47 @@ namespace P2pNet
             long theta = ((t1 - t0) + (t2-t3)) / 2; // offset
             long lag = ((t3 - t0) - (t2-t1)) / 2;
 
+            const long samplesN = 8;
+
+            UpdateStats( currentStats, NormalEwma, samplesN, lag, theta ); // Param is N in "N-sample moving avg"
+            UpdateStats(  testStats, TerribleStupidEwma, 0, lag, theta ); // no param
+
+            logger.Verbose($"*** Stats: Peer: {SID(p2pId)} NewOffset: {theta}, NewLag: {lag}");
+            currentStats.LogStats(logger, "Current");
+            testStats.LogStats(logger,    "   Test");
+        }
+
+        protected static void UpdateStats(TheStats statsInst, Func<long, long, long, long,long> avgFunc, long avgParam, long newLag, long newOffset)
+        {
             // Stash current data
-            currentStats.currentLag = lag;
-            currentStats.currentOffsetMs = theta;
-            currentStats.timeStampMs = P2pNetDateTime.NowMs;
+            statsInst.currentLag = newLag;
+            statsInst.currentOffsetMs = newOffset;
+            statsInst.timeStampMs = P2pNetDateTime.NowMs;
 
-            // Set if unset, else compute
-//            currentStats.avgOffsetMs = (currentStats.sampleCount == 0) ? theta : TerribleStupidEwma(theta, currentStats.avgOffsetMs);
-//            currentStats.avgLagMs = (NetworkLagMs == 0) ? lag : TerribleStupidEwma(lag,  currentStats.avgLagMs);
-
-            currentStats.avgOffsetMs = (currentStats.sampleCount == 0) ? theta : NormalEwma(theta, currentStats.avgOffsetMs, 8);
-            currentStats.avgLagMs = (NetworkLagMs == 0) ? lag : NormalEwma(lag,  currentStats.avgLagMs, 8);
-
-            currentStats.sampleCount++;
+            statsInst.avgLagMs = (statsInst.sampleCount == 0) ? newLag : avgFunc(newLag, statsInst.avgLagMs, statsInst.sampleCount, avgParam);
+            statsInst.avgOffsetMs = (statsInst.sampleCount == 0) ? newOffset : avgFunc(newOffset, statsInst.avgOffsetMs, statsInst.sampleCount, avgParam);
+            statsInst.sampleCount++;
         }
 
 
         //  avg w/prev avg - lame-ass EWMA
-        public static long TerribleStupidEwma(long newVal, long oldAvg)
+        public static long TerribleStupidEwma(long newVal, long oldAvg, long _sampleNum, long _noParam)
         {
             return (newVal + oldAvg) / 2;
         }
 
         // normal, fixed-increment EWMA
-        public static long NormalEwma(long newVal, long oldAvg, long avgOverSampleCount)
+        public static long NormalEwma(long newVal, long oldAvg, long sampleNum, long avgOverSampleCount)
         {
-            // alpha is is 2 / (avgOverSampleCount - 1))
-            float alpha = 2.0f / ((float)avgOverSampleCount - 1);
+            // sampleNum == 0 for first sample
+
+            //  alpha is weignt of new sample
+            float alpha = (sampleNum >= (avgOverSampleCount/2))
+                        ? 2.0f / ((float)avgOverSampleCount - 1)   // use alpha calc
+                        : 1.0f / (sampleNum+1);  // early on just average
+
+            UniLogger.GetLogger("P2pNet").Verbose($"*** Stats: alpha: {alpha}");
+
             float delta = newVal - oldAvg;
             long avg = oldAvg + (long)(alpha * delta);
 
