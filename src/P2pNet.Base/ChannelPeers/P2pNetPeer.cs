@@ -61,10 +61,12 @@ namespace P2pNet
             public float lagSigma;
 
             public long avgOffsetMs;
+            public float offsetVariance;
+            public float offsetSigma;
 
             public void LogStats(UniLogger logger, string statsName)
             {
-                logger.Verbose($"*** Stats: {statsName}, Count: {sampleCount}, Offset: {avgOffsetMs}, Lag: {avgLagMs}");
+                logger.Verbose($"*** Stats: {statsName}, Count: {sampleCount}, Offset: {avgOffsetMs}, OffsetSigma: {offsetSigma}, Lag: {avgLagMs}, LagSigma: {lagSigma}");
             }
 
         }
@@ -92,6 +94,10 @@ namespace P2pNet
 
         public bool ClockNeedsSync(int syncTimeoutMs)
         {
+            // Cause first 3 syncs to timeout quicker
+            if (currentStats.sampleCount < 4)
+                syncTimeoutMs = syncTimeoutMs / (5 - (int)currentStats.sampleCount); // (1,2,3) -> .25, .33 , .5
+
             return
                 lastActivityMs == 0 // has never synced
                 || P2pNetDateTime.NowMs-lastActivityMs > syncTimeoutMs; // or we havent start or participated in a sync in too long.
@@ -118,29 +124,38 @@ namespace P2pNet
             testStats.LogStats(logger,    "   Test");
         }
 
-        protected static void UpdateStats(TheStats statsInst, Func<long, long, long, long,long> avgFunc, long avgParam, long newLag, long newOffset)
+        protected static void UpdateStats(TheStats statsInst, Func<long,long,float,long,long,(long,float)> avgFunc, long avgParam, long newLag, long newOffset)
         {
             // Stash current data
             statsInst.currentLag = newLag;
             statsInst.currentOffsetMs = newOffset;
             statsInst.timeStampMs = P2pNetDateTime.NowMs;
 
-            statsInst.avgLagMs = (statsInst.sampleCount == 0) ? newLag : avgFunc(newLag, statsInst.avgLagMs, statsInst.sampleCount, avgParam);
-            statsInst.avgOffsetMs = (statsInst.sampleCount == 0) ? newOffset : avgFunc(newOffset, statsInst.avgOffsetMs, statsInst.sampleCount, avgParam);
+            (statsInst.avgLagMs, statsInst.lagVariance) =
+                avgFunc(newLag, statsInst.avgLagMs, statsInst.lagVariance, statsInst.sampleCount, avgParam);
+            (statsInst.avgOffsetMs, statsInst.offsetVariance) =
+                avgFunc(newOffset, statsInst.avgOffsetMs, statsInst.offsetVariance, statsInst.sampleCount, avgParam);
+
+            statsInst.lagSigma = (statsInst.lagVariance >= 0) ? (float)Math.Sqrt(statsInst.lagVariance) : -1f;
+            statsInst.offsetSigma = (statsInst.offsetVariance >= 0) ? (float)Math.Sqrt(statsInst.offsetVariance) : -1f;
+
             statsInst.sampleCount++;
         }
 
 
         //  avg w/prev avg - lame-ass EWMA
-        public static long TerribleStupidEwma(long newVal, long oldAvg, long _sampleNum, long _noParam)
+        public static (long, float) TerribleStupidEwma(long newVal, long oldAvg,  float oldVariance, long sampleNum, long _noParam)
         {
-            return (newVal + oldAvg) / 2;
+            return (sampleNum == 0)
+                ? (newVal,  -1f)
+                : ( (newVal + oldAvg) / 2, -1f);
         }
 
         // normal, fixed-increment EWMA
-        public static long NormalEwma(long newVal, long oldAvg, long sampleNum, long avgOverSampleCount)
+        public static (long,float) NormalEwma(long newVal, long oldAvg, float oldVariance, long sampleNum, long avgOverSampleCount)
         {
-            // sampleNum == 0 for first sample
+            if (sampleNum == 0)
+                return (newVal, 0);
 
             //  alpha is weignt of new sample
             float alpha = (sampleNum >= (avgOverSampleCount/2))
@@ -152,8 +167,13 @@ namespace P2pNet
             float delta = newVal - oldAvg;
             long avg = oldAvg + (long)(alpha * delta);
 
-            return avg;
+            float variance = (1.0f - alpha) * (oldVariance + alpha * delta * delta);
+
+            return (avg, variance);
         }
+
+
+
 
 
     }
