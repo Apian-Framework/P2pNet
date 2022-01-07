@@ -199,7 +199,7 @@ namespace P2pNet
             //  alpha is weignt of new sample
             float alpha = (sampleNum < 5)
                         ?  1.0f / (sampleNum+1)  //  just average first 4 ( alpha = .5, .333, .25)
-                        :  1.0f - (float)Math.Exp( -dT / avgOverPeriodMs); // use alpha calc
+                        :  1.0f - (float)Math.Exp( -(double)dT / avgOverPeriodMs); // use alpha calc
 
             UniLogger.GetLogger("P2pNet").Verbose($"*** Stats: alphaT: {alpha}");
 
