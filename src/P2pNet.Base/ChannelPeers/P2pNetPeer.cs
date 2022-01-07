@@ -76,10 +76,12 @@ namespace P2pNet
         protected TheStats currentStats;
         protected TheStats testStats; // using this during development to compare
 
+        protected long avgSyncPeriodMs = 12000; // hard-coded start val (note there can be different channels w/different periods)
+
         public PeerClockSyncCalc(string _p2pId)
         {
             p2pId = _p2pId;
-            logger = UniLogger.GetLogger("P2pNet");
+            logger = UniLogger.GetLogger("P2pNetSync");
             currentStats = new TheStats();
             testStats = new TheStats();
         }
@@ -94,6 +96,8 @@ namespace P2pNet
 
         public bool ClockNeedsSync(int syncTimeoutMs)
         {
+            avgSyncPeriodMs = (avgSyncPeriodMs + syncTimeoutMs) / 2; // running alpha=.5 ewma
+
             // Cause first 3 syncs to timeout quicker
             if (currentStats.sampleCount < 4)
                 syncTimeoutMs = syncTimeoutMs / (5 - (int)currentStats.sampleCount); // (1,2,3) -> .25, .33 , .5
@@ -120,7 +124,7 @@ namespace P2pNet
             // EWMA taking irregular sample timing into account
             // See: https://en.wikipedia.org/wiki/Moving_average#Application_to_measuring_computer_performance
             long dT =  P2pNetDateTime.NowMs - testStats.timeStampMs;
-            long samplesPeriodMs = 20000;
+            long samplesPeriodMs = 4 * avgSyncPeriodMs; // TODO: revisit this. It might be ok
             UpdateStats( currentStats, IrregularPeriodlEwma, (dT,samplesPeriodMs), lag, theta);
 
 
@@ -177,7 +181,7 @@ namespace P2pNet
                         ? 2.0f / ((float)avgOverSampleCount - 1)   // use alpha calc
                         : 1.0f / (sampleNum+1);  // early on just average
 
-            UniLogger.GetLogger("P2pNet").Verbose($"*** Stats: alpha: {alpha}");
+            UniLogger.GetLogger("P2pNetSync").Debug($"*** Stats: alpha: {alpha}");
 
             float delta = newVal - oldAvg;
             long avg = oldAvg + (long)(alpha * delta);
@@ -201,7 +205,7 @@ namespace P2pNet
                         ?  1.0f / (sampleNum+1)  //  just average first 4 ( alpha = .5, .333, .25)
                         :  1.0f - (float)Math.Exp( -(double)dT / avgOverPeriodMs); // use alpha calc
 
-            UniLogger.GetLogger("P2pNet").Verbose($"*** Stats: alphaT: {alpha}");
+            UniLogger.GetLogger("P2pNetSync").Debug($"*** Stats: alphaT: {alpha}");
 
             float delta = newVal - oldAvg;
             long avg = oldAvg + (long)(alpha * delta);
