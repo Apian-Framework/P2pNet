@@ -96,7 +96,7 @@ namespace P2pNet
 
         public bool ClockNeedsSync(int syncTimeoutMs)
         {
-            avgSyncPeriodMs = (avgSyncPeriodMs + syncTimeoutMs) / 2; // running alpha=.5 ewma
+            avgSyncPeriodMs = (long)((avgSyncPeriodMs + syncTimeoutMs) * .5); // running alpha=.5 ewma
 
             // Cause first 3 syncs to timeout quicker
             if (currentStats.sampleCount < 4)
@@ -205,6 +205,7 @@ namespace P2pNet
                         ?  1.0f / (sampleNum+1)  //  just average first 4 ( alpha = .5, .333, .25)
                         :  1.0f - (float)Math.Exp( -(double)dT / avgOverPeriodMs); // use alpha calc
 
+            UniLogger.GetLogger("P2pNetSync").Debug($"*** Stats: avgOverPeriodMs: {avgOverPeriodMs}");
             UniLogger.GetLogger("P2pNetSync").Debug($"*** Stats: alphaT: {alpha}");
 
             float delta = newVal - oldAvg;
