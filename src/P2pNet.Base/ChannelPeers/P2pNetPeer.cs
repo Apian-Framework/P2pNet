@@ -114,17 +114,29 @@ namespace P2pNet
             long theta = ((t1 - t0) + (t2-t3)) / 2; // offset
             long lag = ((t3 - t0) - (t2-t1)) / 2;
 
-            const long samplesN = 8;
+            // TODO: consider using T3 as timestamp for the latest sample
 
-            UpdateStats( currentStats, NormalEwma, samplesN, lag, theta ); // Param is N in "N-sample moving avg"
-            UpdateStats(  testStats, TerribleStupidEwma, 0, lag, theta ); // no param
+
+            // EWMA taking irregular sample timing into account
+            // See: https://en.wikipedia.org/wiki/Moving_average#Application_to_measuring_computer_performance
+            long dT =  P2pNetDateTime.NowMs - testStats.timeStampMs;
+            long samplesPeriodMs = 20000;
+            UpdateStats( currentStats, IrregularPeriodlEwma, (dT,samplesPeriodMs), lag, theta);
+
+
+            // Traditional (per-sample) EWMA - kinda assumes equal sample times.
+            const long samplesN = 8;
+            UpdateStats( testStats, TraditionalEwma, samplesN, lag, theta ); // Param is N in "N-sample moving avg"
+
+            // Old "avg w/previous avg" (aplha = .5) EWMA
+            //UpdateStats(  testStats, TerribleStupidEwma, 0, lag, theta ); // no param
 
             logger.Verbose($"*** Stats: Peer: {SID(p2pId)} NewOffset: {theta}, NewLag: {lag}");
             currentStats.LogStats(logger, "Current");
             testStats.LogStats(logger,    "   Test");
         }
 
-        protected static void UpdateStats(TheStats statsInst, Func<long,long,float,long,long,(long,float)> avgFunc, long avgParam, long newLag, long newOffset)
+        protected static void UpdateStats(TheStats statsInst, Func<long,long,float,long,object,(long,float)> avgFunc, object avgParam, long newLag, long newOffset)
         {
             // Stash current data
             statsInst.currentLag = newLag;
@@ -133,6 +145,7 @@ namespace P2pNet
 
             (statsInst.avgLagMs, statsInst.lagVariance) =
                 avgFunc(newLag, statsInst.avgLagMs, statsInst.lagVariance, statsInst.sampleCount, avgParam);
+
             (statsInst.avgOffsetMs, statsInst.offsetVariance) =
                 avgFunc(newOffset, statsInst.avgOffsetMs, statsInst.offsetVariance, statsInst.sampleCount, avgParam);
 
@@ -144,7 +157,7 @@ namespace P2pNet
 
 
         //  avg w/prev avg - lame-ass EWMA
-        public static (long, float) TerribleStupidEwma(long newVal, long oldAvg,  float oldVariance, long sampleNum, long _noParam)
+        public static (long, float) TerribleStupidEwma(long newVal, long oldAvg,  float oldVariance, long sampleNum, object _noParam)
         {
             return (sampleNum == 0)
                 ? (newVal,  -1f)
@@ -152,10 +165,12 @@ namespace P2pNet
         }
 
         // normal, fixed-increment EWMA
-        public static (long,float) NormalEwma(long newVal, long oldAvg, float oldVariance, long sampleNum, long avgOverSampleCount)
+        public static (long,float) TraditionalEwma(long newVal, long oldAvg, float oldVariance, long sampleNum, object avgOverSampleCountObj)
         {
             if (sampleNum == 0)
                 return (newVal, 0);
+
+            long avgOverSampleCount = (long)avgOverSampleCountObj;
 
             //  alpha is weignt of new sample
             float alpha = (sampleNum >= (avgOverSampleCount/2))
@@ -173,6 +188,28 @@ namespace P2pNet
         }
 
 
+        public static (long,float) IrregularPeriodlEwma(long newVal, long oldAvg, float oldVariance, long sampleNum, object avgParams)
+        {
+            if (sampleNum == 0)
+                return (newVal, 0);
+
+
+            (long dT, long avgOverPeriodMs) = ( ValueTuple<long,long>)avgParams;
+
+            //  alpha is weignt of new sample
+            float alpha = (sampleNum < 5)
+                        ?  1.0f / (sampleNum+1)  //  just average first 4 ( alpha = .5, .333, .25)
+                        :  1.0f - (float)Math.Exp( -dT / avgOverPeriodMs); // use alpha calc
+
+            UniLogger.GetLogger("P2pNet").Verbose($"*** Stats: alphaT: {alpha}");
+
+            float delta = newVal - oldAvg;
+            long avg = oldAvg + (long)(alpha * delta);
+
+            float variance = (1.0f - alpha) * (oldVariance + alpha * delta * delta);
+
+            return (avg, variance);
+        }
 
 
 
