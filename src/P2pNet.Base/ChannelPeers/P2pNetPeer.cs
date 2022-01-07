@@ -76,7 +76,7 @@ namespace P2pNet
         protected TheStats currentStats;
         protected TheStats testStats; // using this during development to compare
 
-        protected long avgSyncPeriodMs = 12000; // hard-coded start val (note there can be different channels w/different periods)
+        protected long avgSyncPeriodMs = 15000; // hard-coded start val (note there can be different channels w/different periods)
 
         public PeerClockSyncCalc(string _p2pId)
         {
@@ -124,7 +124,7 @@ namespace P2pNet
             // EWMA taking irregular sample timing into account
             // See: https://en.wikipedia.org/wiki/Moving_average#Application_to_measuring_computer_performance
             long dT =  P2pNetDateTime.NowMs - testStats.timeStampMs;
-            long samplesPeriodMs = 4 * avgSyncPeriodMs; // TODO: revisit this. It might be ok
+            long samplesPeriodMs = 3 * avgSyncPeriodMs; // TODO: revisit this. It might be ok
             UpdateStats( currentStats, IrregularPeriodlEwma, (dT,samplesPeriodMs), lag, theta);
 
 
@@ -201,8 +201,8 @@ namespace P2pNet
             (long dT, long avgOverPeriodMs) = ( ValueTuple<long,long>)avgParams;
 
             //  alpha is weignt of new sample
-            float alpha = (sampleNum < 5)
-                        ?  1.0f / (sampleNum+1)  //  just average first 4 ( alpha = .5, .333, .25)
+            float alpha = (sampleNum < 4)
+                        ?  1.0f / (sampleNum+1)  //  just average first 4 ( alpha = 1 (sampleNum == 0), .5, .333, .25)
                         :  1.0f - (float)Math.Exp( -(double)dT / avgOverPeriodMs); // use alpha calc
 
             UniLogger.GetLogger("P2pNetSync").Debug($"*** Stats: avgOverPeriodMs: {avgOverPeriodMs}");
