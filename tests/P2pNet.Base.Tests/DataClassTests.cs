@@ -21,15 +21,17 @@ namespace P2pNetBaseTests
         {
             // public PeerClockSyncInfo(string pid, long since, long offset, long lag)
             const string pid = "pid";
-            const long since = 123456,
+            const long count = 12,
+                since = 123456,
                 offfset = 3245,
                 lag = 250;
+            const double lagSigma = 1.2, offsetSigma = 4.3;
 
-            PeerClockSyncInfo syncData = new PeerClockSyncInfo(pid, since, offfset, lag);
+            PeerClockSyncInfo syncData = new PeerClockSyncInfo(pid, count, since, offfset, offsetSigma, lag, lagSigma);
             Assert.That(syncData, Is.Not.Null);
             Assert.That(syncData.peerId, Is.EqualTo(pid));
             Assert.That(syncData.msSinceLastSync, Is.EqualTo(since));
-            Assert.That(syncData.clockOffsetMs, Is.EqualTo(offfset));
+            Assert.That(syncData.sysClockOffsetMs, Is.EqualTo(offfset));
             Assert.That(syncData.networkLagMs, Is.EqualTo(lag));
         }
     }

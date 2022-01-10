@@ -5,14 +5,20 @@ namespace P2pNet
     {
         public string peerId;
         public long networkLagMs; // round trip time / 2
-        public long clockOffsetMs; // localTime + offset = remoteTime
+        public double networkLagSigma; // Std deviation
+        public long sysClockOffsetMs; // localTime + offset = remoteTime
+        public double sysClockOffsetSigma;
         public long msSinceLastSync;
-        public PeerClockSyncInfo(string pid, long since, long offset, long lag)
+        public long syncCount; // number of synd test samples
+        public PeerClockSyncInfo(string pid, long cnt, long since, long offset, double offsetSigma, long lag, double lagSigma)
         {
             peerId = pid;
+            syncCount = cnt;
             msSinceLastSync = since;
             networkLagMs = lag;
-            clockOffsetMs = offset;
+            networkLagSigma = lagSigma;
+            sysClockOffsetMs = offset;
+            sysClockOffsetSigma = offsetSigma;
         }
     }
 }

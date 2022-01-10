@@ -110,8 +110,10 @@ namespace P2pNet
         public PeerClockSyncInfo GetClockSyncInfo(string p2pId)
         {
             // TODO: really create a new one every call?
-            return new PeerClockSyncInfo(p2pId, P2pNetDateTime.NowMs - currentStats.timeStampMs, currentStats.avgOffsetMs, currentStats.avgLagMs);
+            return new PeerClockSyncInfo(p2pId,  currentStats.sampleCount,  P2pNetDateTime.NowMs - currentStats.timeStampMs,
+                currentStats.avgOffsetMs, currentStats.offsetSigma,  currentStats.avgLagMs, currentStats.lagSigma);
         }
+     //public PeerClockSyncInfo(string pid, long cnt, long since, long offset, double offsetSigma, long lag, double lagSigma)
 
         public void Compute(long t0, long t1, long t2, long t3)
         {

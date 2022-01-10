@@ -333,7 +333,7 @@ namespace P2pNet
                 long realMsSinceSend = -1; // means no clock sync
                 if (channel != null && channel.IsSyncingClocks)
                 {
-                    long remoteMsNow = P2pNetDateTime.NowMs + peer.ClockSyncInfo.clockOffsetMs; // TODO: too much work?
+                    long remoteMsNow = P2pNetDateTime.NowMs + peer.ClockSyncInfo.sysClockOffsetMs; // TODO: too much work?
                     realMsSinceSend =  remoteMsNow - msg.sentTime;
                     if (realMsSinceSend < 0)
                     {
@@ -538,11 +538,11 @@ namespace P2pNet
                     DoSend(from, P2pNetMessage.MsgSync, JsonConvert.SerializeObject(payload)); // send reply
                     peer.CompleteClockSync(payload.t0, payload.t1, payload.t2, payload.t3);
                     PeerClockSyncInfo csi = peer.ClockSyncInfo;
-                    logger.Info($"Synced (org) {SID(from)} Offset: {csi.clockOffsetMs}, Lag: {csi.networkLagMs}");
+                    logger.Info($"Synced (org) {SID(from)} Offset: {csi.sysClockOffsetMs}, Lag: {csi.networkLagMs}");
                     foreach (P2pNetChannel ch in channelPeers.ChannelsForPeer(peer.p2pId))
                     {
                         if (ch.IsSyncingClocks)
-                            client.OnPeerSync(ch.Id,peer.p2pId, csi.clockOffsetMs, csi.networkLagMs);
+                            client.OnPeerSync(ch.Id,peer.p2pId, csi.sysClockOffsetMs, csi.networkLagMs);
                             // TODO: OnPeerSYnc should just take a PeerClockSYncInfo?
                     }
 
@@ -550,12 +550,12 @@ namespace P2pNet
                     // we're the recipient and it's done
                     peer.CompleteClockSync(payload.t2, payload.t3, msg.sentTime, msg.rcptTime);
                     PeerClockSyncInfo csi = peer.ClockSyncInfo;
-                    logger.Info($"Synced (rcp) {SID(from)} Offset: {csi.clockOffsetMs}, Lag: {csi.networkLagMs}");
+                    logger.Info($"Synced (rcp) {SID(from)} Offset: {csi.sysClockOffsetMs}, Lag: {csi.networkLagMs}");
                     // TODO: fix the following copypasta
                     foreach (P2pNetChannel ch in channelPeers.ChannelsForPeer(peer.p2pId))
                     {
                         if (ch.IsSyncingClocks)
-                            client.OnPeerSync(ch.Id,peer.p2pId, csi.clockOffsetMs, csi.networkLagMs);
+                            client.OnPeerSync(ch.Id,peer.p2pId, csi.sysClockOffsetMs, csi.networkLagMs);
                     }
                 }
             } else {
