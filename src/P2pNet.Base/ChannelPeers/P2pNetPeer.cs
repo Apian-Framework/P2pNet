@@ -78,12 +78,16 @@ namespace P2pNet
 
         protected long avgSyncPeriodMs = 15000; // hard-coded start val (note there can be different channels w/different periods)
 
+        protected const int defInitialSyncTimeoutMs = 200; // for 1st 4 syncTimeoutMs
+        protected int initialSyncTimeoutMs;  // vary this some to spread it out a little
+
         public PeerClockSyncCalc(string _p2pId)
         {
             p2pId = _p2pId;
             logger = UniLogger.GetLogger("P2pNetSync");
             currentStats = new TheStats();
             testStats = new TheStats();
+            initialSyncTimeoutMs =  defInitialSyncTimeoutMs + new Random().Next(defInitialSyncTimeoutMs/4); // lame random, but ok here
         }
 
         public long lastActivityMs; // so we know if we're currently syncing or have never synced - and unlike flags will
@@ -100,7 +104,7 @@ namespace P2pNet
 
             // Cause first 3 syncs to timeout quicker
             if (currentStats.sampleCount < 4)
-                syncTimeoutMs = syncTimeoutMs / (5 - (int)currentStats.sampleCount); // (1,2,3) -> .25, .33 , .5
+                syncTimeoutMs = initialSyncTimeoutMs;
 
             return
                 lastActivityMs == 0 // has never synced

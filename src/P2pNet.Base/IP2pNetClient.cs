@@ -6,7 +6,7 @@ namespace P2pNet
         void OnPeerMissing(string channel, string p2pId);
         void OnPeerReturned(string channel, string p2pId);
         void OnPeerLeft(string channel, string p2pId);
-        void OnPeerSync(string channel, string p2pId, long clockOffsetMs, long netLagMs);
+        void OnPeerSync(string channel, string p2pId, PeerClockSyncInfo syncInfo);
         void OnClientMsg(string from, string toChan, long msSinceSent, string payload);
     }
 }

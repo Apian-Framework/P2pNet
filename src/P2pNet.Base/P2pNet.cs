@@ -542,7 +542,7 @@ namespace P2pNet
                     foreach (P2pNetChannel ch in channelPeers.ChannelsForPeer(peer.p2pId))
                     {
                         if (ch.IsSyncingClocks)
-                            client.OnPeerSync(ch.Id,peer.p2pId, csi.sysClockOffsetMs, csi.networkLagMs);
+                            client.OnPeerSync(ch.Id,peer.p2pId, csi);
                             // TODO: OnPeerSYnc should just take a PeerClockSYncInfo?
                     }
 
@@ -555,7 +555,7 @@ namespace P2pNet
                     foreach (P2pNetChannel ch in channelPeers.ChannelsForPeer(peer.p2pId))
                     {
                         if (ch.IsSyncingClocks)
-                            client.OnPeerSync(ch.Id,peer.p2pId, csi.sysClockOffsetMs, csi.networkLagMs);
+                            client.OnPeerSync(ch.Id,peer.p2pId, csi);
                     }
                 }
             } else {

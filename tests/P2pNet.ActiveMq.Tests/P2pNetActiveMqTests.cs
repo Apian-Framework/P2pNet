@@ -40,7 +40,7 @@ namespace P2pNetTests
                 throw new NotImplementedException();
             }
 
-            public void OnPeerSync(string chanId, string p2pId, long clockOffsetMs, long netLagMs)
+            public void OnPeerSync(string channelId, string p2pId, PeerClockSyncInfo syncInfo)
             {
                 throw new NotImplementedException();
             }
