@@ -71,7 +71,7 @@ namespace P2pNet
             if (localId == null)
                 return; // Not connected so don't bother
 
-            logger.Debug($"Update()");
+            //logger.Debug($"Update()");  Too much log.
 
             ImplementationPoll(); // Do any network polling
 
