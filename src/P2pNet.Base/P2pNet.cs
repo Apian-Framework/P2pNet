@@ -11,7 +11,7 @@ namespace P2pNet
     // Problem here is that "p2p" is a word: "peer-to-peer" and the default .NET ReSharper rules dealing with digits result
     // in dumb stuff, like a field called "_p2PFooBar" with the 2nd P capped.
 
-     public abstract class P2pNetBase : IP2pNet
+    public abstract class P2pNetBase : IP2pNet
     {
         protected string localId;
         protected IP2pNetClient client;
@@ -30,9 +30,21 @@ namespace P2pNet
             InitJoinParams();
         }
 
+        // Carrier Protocol (Transport) specific tasks.
+        // Implementations MUST define these methods
+        protected abstract void CarrierProtocolPoll();
+        protected abstract void CarrierProtocolJoin(P2pNetChannelInfo mainChannel, string localId, string localHelloData);
+        protected abstract void CarrierProtocolSend(P2pNetMessage msg);
+        protected abstract void CarrierProtocolListen(string channel);
+        protected abstract void CarrierProtocolStopListening(string channel);
+        protected abstract void CarrierProtocolLeave();
+        protected abstract string CarrierProtocolNewP2pId();
+        protected abstract void CarrierProtocolAddReceiptTimestamp(P2pNetMessage msg);
+
+
         // IP2pNet
 
-        public string GetId() => localId ?? (localId = ImplementationNewP2pId());
+        public string GetId() => localId ?? (localId = CarrierProtocolNewP2pId());
 
         public P2pNetChannel GetMainChannel() =>channelPeers.MainChannel;
 
@@ -44,7 +56,7 @@ namespace P2pNet
             // on it from a peer that is already in the channelPeers list (for a "real" channel)
             // then that peer it will get its "heardFrom" property updated.
             InitJoinParams();
-            ImplementationJoin(mainChannelInfo, localId, localHelloData); // connects to network and listens on localId
+            CarrierProtocolJoin(mainChannelInfo, localId, localHelloData); // connects to network and listens on localId
         }
 
         protected void OnNetworkJoined(P2pNetChannelInfo mainChannelInfo, string localHelloData)
@@ -58,7 +70,7 @@ namespace P2pNet
         public void Leave()
         {
             SendBye(channelPeers.MainChannel.Id);
-            ImplementationLeave();
+            CarrierProtocolLeave();
             InitJoinParams(); // resets
         }
 
@@ -73,7 +85,7 @@ namespace P2pNet
 
             //logger.Debug($"Update()");  Too much log.
 
-            ImplementationPoll(); // Do any network polling
+            CarrierProtocolPoll(); // Do any network polling
 
             // TODO: iterating over everything this way is kinda brutish.
             // Ought to be able to figure out when things will need to get done in advance and
@@ -211,7 +223,7 @@ namespace P2pNet
             {
                 P2pNetChannel chan = channelPeers.GetChannel(chanInfo.id);
                 logger.Info($"Listening to channel: {chanInfo.id}");
-                ImplementationListen(chan.Id);
+                CarrierProtocolListen(chan.Id);
                 if (chan.Info.pingMs > 0)
                     SendHelloMsg(chan.Id, chan.Id ); // broadcast
             }
@@ -222,19 +234,9 @@ namespace P2pNet
         {
             SendBye(chanId);
             channelPeers.RemoveChannel(chanId);
-            ImplementationStopListening(chanId);
+            CarrierProtocolStopListening(chanId);
         }
 
-
-        // Implementations MUST define these methods
-        protected abstract void ImplementationPoll();
-        protected abstract void ImplementationJoin(P2pNetChannelInfo mainChannel, string localId, string localHelloData);
-        protected abstract void ImplementationSend(P2pNetMessage msg);
-        protected abstract void ImplementationListen(string channel);
-        protected abstract void ImplementationStopListening(string channel);
-        protected abstract void ImplementationLeave();
-        protected abstract string ImplementationNewP2pId();
-        protected abstract void ImplementationAddReceiptTimestamp(P2pNetMessage msg);
 
         // Transport-independent tasks
 
@@ -244,7 +246,7 @@ namespace P2pNet
             long msgId = NextMsgId(dstChan);
             P2pNetMessage p2pMsg = new P2pNetMessage(dstChan, localId, msgId, msgType, payload);
             p2pMsg.sentTime = P2pNetDateTime.NowMs; // should not happen in ctor
-            ImplementationSend(p2pMsg);
+            CarrierProtocolSend(p2pMsg);
             UpdateSendStats(dstChan, msgId);
         }
 

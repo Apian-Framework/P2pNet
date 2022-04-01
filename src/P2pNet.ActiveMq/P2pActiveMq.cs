@@ -26,7 +26,7 @@ namespace P2pNet
             connection = factory.CreateConnection(parts[0], parts[1]);
         }
 
-        protected override void ImplementationPoll()
+        protected override void CarrierProtocolPoll()
         {
             if (messageQueue.Count > 0)
             {
@@ -44,11 +44,11 @@ namespace P2pNet
             }
         }
 
-        protected override void ImplementationJoin(P2pNetChannelInfo mainChannel, string localId, string localHelloData)
+        protected override void CarrierProtocolJoin(P2pNetChannelInfo mainChannel, string localId, string localHelloData)
         {
             session = connection.CreateSession();
             connection.Start();
-            ImplementationListen(localId);
+            CarrierProtocolListen(localId);
             OnNetworkJoined(mainChannel, localHelloData);
         }
 
@@ -56,18 +56,18 @@ namespace P2pNet
         {
             ITextMessage txtMsg = receivedMsg as ITextMessage;
             P2pNetMessage p2pMsg = JsonConvert.DeserializeObject<P2pNetMessage>(txtMsg.Text);
-            ImplementationAddReceiptTimestamp(p2pMsg);
+            CarrierProtocolAddReceiptTimestamp(p2pMsg);
             lock(queueLock)
                 messageQueue.Add(p2pMsg); // queue it up
         }
 
-        protected override void ImplementationLeave()
+        protected override void CarrierProtocolLeave()
         {
             session.Close();
             connection.Close();
         }
 
-        protected override void ImplementationSend(P2pNetMessage msg)
+        protected override void CarrierProtocolSend(P2pNetMessage msg)
         {
             IDestination dest = session.GetTopic(msg.dstChannel);
             IMessageProducer prod = session.CreateProducer(dest);
@@ -76,7 +76,7 @@ namespace P2pNet
             prod.Send(session.CreateTextMessage(msgJSON));
         }
 
-        protected override void ImplementationListen(string channel)
+        protected override void CarrierProtocolListen(string channel)
         {
             IDestination dest = session.GetTopic(channel);
             IMessageConsumer cons = session.CreateConsumer(dest);
@@ -85,7 +85,7 @@ namespace P2pNet
             cons.Listener += l;
         }
 
-        protected override void ImplementationStopListening(string channel)
+        protected override void CarrierProtocolStopListening(string channel)
         {
             if (listeningDict.ContainsKey(channel))
             {
@@ -98,9 +98,9 @@ namespace P2pNet
                 logger.Warn($"_StopListening(): Not listening to {channel}");
         }
 
-        protected override string ImplementationNewP2pId() => System.Guid.NewGuid().ToString();
+        protected override string CarrierProtocolNewP2pId() => System.Guid.NewGuid().ToString();
 
-        protected override void ImplementationAddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = P2pNetDateTime.NowMs;
+        protected override void CarrierProtocolAddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = P2pNetDateTime.NowMs;
 
     }
 }

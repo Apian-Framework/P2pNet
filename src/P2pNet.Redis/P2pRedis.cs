@@ -36,7 +36,7 @@ namespace P2pNet
             return msg;
         }
 
-        protected override void ImplementationPoll()
+        protected override void CarrierProtocolPoll()
         {
             if (messageQueue?.Count > 0)
             {
@@ -54,7 +54,7 @@ namespace P2pNet
             }
         }
 
-        protected override void ImplementationJoin(P2pNetChannelInfo mainChannel, string localPeerId, string localHelloData)
+        protected override void CarrierProtocolJoin(P2pNetChannelInfo mainChannel, string localPeerId, string localHelloData)
         {
 
             try {
@@ -66,11 +66,11 @@ namespace P2pNet
                 logger.Debug(string.Format("P2pRedis Ctor: System.ArgumentException:{0}", ex.Message));
                 throw( new Exception($"Bad connection string: {ex.Message}"));
             }
-            ImplementationListen(localPeerId);
+            CarrierProtocolListen(localPeerId);
             OnNetworkJoined(mainChannel, localHelloData);
         }
 
-        protected override void ImplementationLeave()
+        protected override void CarrierProtocolLeave()
         {
             ConnectionMux.Close();
             ConnectionMux =null;
@@ -79,13 +79,13 @@ namespace P2pNet
             messageQueue = null;
         }
 
-        protected override void ImplementationSend(P2pNetMessage msg)
+        protected override void CarrierProtocolSend(P2pNetMessage msg)
         {
             string msgJSON = JsonConvert.SerializeObject(msg);
             ConnectionMux.GetSubscriber().PublishAsync(msg.dstChannel, msgJSON);
         }
 
-        protected override void ImplementationListen(string channel)
+        protected override void CarrierProtocolListen(string channel)
         {
             //_ListenConcurrent(channel);
             _ListenSequential(channel);
@@ -108,23 +108,23 @@ namespace P2pNet
             rcvChannel.OnMessage(channelMsg =>
             {
                 P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(channelMsg.Message);
-                ImplementationAddReceiptTimestamp(msg);
+                CarrierProtocolAddReceiptTimestamp(msg);
                 lock(queueLock)
                     messageQueue.Add(msg); // queue it up
             });
         }
 
-        protected override void ImplementationStopListening(string channel)
+        protected override void CarrierProtocolStopListening(string channel)
         {
             ConnectionMux.GetSubscriber().Unsubscribe(channel);
         }
 
-        protected override string ImplementationNewP2pId()
+        protected override string CarrierProtocolNewP2pId()
         {
             return System.Guid.NewGuid().ToString();
         }
 
-        protected override void ImplementationAddReceiptTimestamp(P2pNetMessage msg)
+        protected override void CarrierProtocolAddReceiptTimestamp(P2pNetMessage msg)
         {
             msg.rcptTime = P2pNetDateTime.NowMs;
         }

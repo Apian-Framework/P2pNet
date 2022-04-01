@@ -41,7 +41,7 @@ namespace P2pNet
         }
 
 
-        protected override void ImplementationPoll()
+        protected override void CarrierProtocolPoll()
         {
             // receive polling
             if (rcvMessageQueue.Count > 0)
@@ -60,7 +60,7 @@ namespace P2pNet
             }
         }
 
-        protected override void ImplementationJoin(P2pNetChannelInfo mainChannel, string localPeerId, string localHelloData)
+        protected override void CarrierProtocolJoin(P2pNetChannelInfo mainChannel, string localPeerId, string localHelloData)
         {
             // TODO: add TLS
 
@@ -96,12 +96,12 @@ namespace P2pNet
 
 
                 // runs when ConnectAsync is done
-                ImplementationListen(localPeerId);
+                CarrierProtocolListen(localPeerId);
                 OnNetworkJoined(mainChannel, localHelloData);
             });
         }
 
-        protected override void ImplementationLeave()
+        protected override void CarrierProtocolLeave()
         {
             //&&& sendMessageQueue = null;
             //&&& sendQueueReset.Set(); // finishes the publishing task
@@ -109,7 +109,7 @@ namespace P2pNet
             // FIXME: need to do more than this
         }
 
-        protected override void ImplementationSend(P2pNetMessage msg)
+        protected override void CarrierProtocolSend(P2pNetMessage msg)
         {
             // We want this to be fire-n-forget for the caller, so we just do the syncronous
             // message construction and queue up the result.
@@ -135,13 +135,13 @@ namespace P2pNet
         {
             MqttApplicationMessage mqttMsg = args.ApplicationMessage;
             P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(Encoding.UTF8.GetString(mqttMsg.Payload));
-             ImplementationAddReceiptTimestamp(msg);
+             CarrierProtocolAddReceiptTimestamp(msg);
             lock(queueLock)
                 rcvMessageQueue.Enqueue(msg); // queue it up
         }
 
 
-        protected override void ImplementationListen(string channel)
+        protected override void CarrierProtocolListen(string channel)
         {
             // Subscribe to a topic
             MqttClientSubscribeOptions options = new MqttClientSubscribeOptionsBuilder().WithTopicFilter(channel).Build();
@@ -149,18 +149,18 @@ namespace P2pNet
         }
 
 
-        protected override void ImplementationStopListening(string channel)
+        protected override void CarrierProtocolStopListening(string channel)
         {
             // FIXME
             throw new NotImplementedException();
         }
 
-        protected override string ImplementationNewP2pId()
+        protected override string CarrierProtocolNewP2pId()
         {
             return System.Guid.NewGuid().ToString();
         }
 
-        protected override void ImplementationAddReceiptTimestamp(P2pNetMessage msg)
+        protected override void CarrierProtocolAddReceiptTimestamp(P2pNetMessage msg)
         {
             msg.rcptTime = P2pNetDateTime.NowMs;
         }
