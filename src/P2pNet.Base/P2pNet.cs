@@ -20,14 +20,15 @@ namespace P2pNet
         protected Dictionary<string, long> lastMsgIdSent; // last Id sent to each channel. Msg IDs are serial, and PER CHANNEL
         public UniLogger logger;
 
-        //public static long NowMs => DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
 
+        // XXX Need to be able to pass in an ID - and/or a method to create them?
         protected P2pNetBase(IP2pNetClient _client, string _connectionStr)
         {
-             client = _client;
+            client = _client;  // Do NOT re-init this
             connectionStr = _connectionStr;
             logger = UniLogger.GetLogger("P2pNet");
-            InitJoinParams();
+            localId = NewP2pId();
+            ResetJoinStateVars();
         }
 
         // Carrier Protocol (Transport) specific tasks.
@@ -38,15 +39,20 @@ namespace P2pNet
         protected abstract void CarrierProtocolListen(string channel);
         protected abstract void CarrierProtocolStopListening(string channel);
         protected abstract void CarrierProtocolLeave();
-        protected abstract string CarrierProtocolNewP2pId();
         protected abstract void CarrierProtocolAddReceiptTimestamp(P2pNetMessage msg);
 
 
         // IP2pNet
 
-        public string GetId() => localId ?? (localId = CarrierProtocolNewP2pId());
+        public string GetId() => localId;
 
         public P2pNetChannel GetMainChannel() =>channelPeers.MainChannel;
+
+        private void ResetJoinStateVars()
+        {
+            channelPeers = new P2pNetChannelPeerPairings();
+            lastMsgIdSent = new Dictionary<string, long>();
+        }
 
         public void Join(P2pNetChannelInfo mainChannelInfo, string localHelloData)
         {
@@ -55,7 +61,7 @@ namespace P2pNet
             // or timing or anything connected to it. On the other hand - if a message comes in
             // on it from a peer that is already in the channelPeers list (for a "real" channel)
             // then that peer it will get its "heardFrom" property updated.
-            InitJoinParams();
+            ResetJoinStateVars();
             CarrierProtocolJoin(mainChannelInfo, localId, localHelloData); // connects to network and listens on localId
         }
 
@@ -71,7 +77,7 @@ namespace P2pNet
         {
             SendBye(channelPeers.MainChannel.Id);
             CarrierProtocolLeave();
-            InitJoinParams(); // resets
+            ResetJoinStateVars(); // resets
         }
 
         public List<string> GetPeerIds() => channelPeers.GetPeerIds();
@@ -240,6 +246,11 @@ namespace P2pNet
 
         // Transport-independent tasks
 
+        protected string NewP2pId()
+        {
+            return System.Guid.NewGuid().ToString();
+        }
+
         protected void DoSend(string dstChan, string msgType, string payload)
         {
             // Send() is the API for client messages
@@ -350,12 +361,6 @@ namespace P2pNet
             } else {
                 logger.Warn($"_OnAppMsg - Unknown peer {SID(msg.srcId)} sending on channel {msgChanId} for channel {msg.dstChannel}");
             }
-        }
-
-        protected void InitJoinParams()
-        {
-            channelPeers = new P2pNetChannelPeerPairings();
-            lastMsgIdSent = new Dictionary<string, long>();
         }
 
         protected long NextMsgId(string chan)
