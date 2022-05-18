@@ -25,7 +25,7 @@ namespace P2pNet
 
         public P2pMqtt(IP2pNetClient _client, string _connectionString) : base(_client, _connectionString)
         {
-            rcvMessageQueue = new Queue<P2pNetMessage>();
+            ResetJoinVars();
             //&&& sendMessageQueue = new ConcurrentQueue<MqttApplicationMessage>(); // unbounded
             //&&& sendQueueReset = new ManualResetEventSlim(false);
 
@@ -36,6 +36,8 @@ namespace P2pNet
             connectOpts = JsonConvert.DeserializeObject<Dictionary<string,string>>(_connectionString);
 
             // Create a new MQTT client.
+            // TODO: This should be in joinand these reset in ResetJoinVars()
+            // TODO: this whole implmentation is not done
             MqttFactory factory = new MqttFactory();
             mqttClient = factory.CreateMqttClient();
         }
@@ -60,8 +62,15 @@ namespace P2pNet
             }
         }
 
+        private void ResetJoinVars()
+        {
+            rcvMessageQueue = new Queue<P2pNetMessage>();
+        }
+
         protected override void CarrierProtocolJoin(P2pNetChannelInfo mainChannel, string localPeerId, string localHelloData)
         {
+            ResetJoinVars();
+
             // TODO: add TLS
 
             // Create TCP based options using the builder.
@@ -153,11 +162,6 @@ namespace P2pNet
         {
             // FIXME
             throw new NotImplementedException();
-        }
-
-        protected override string CarrierProtocolNewP2pId()
-        {
-            return System.Guid.NewGuid().ToString();
         }
 
         protected override void CarrierProtocolAddReceiptTimestamp(P2pNetMessage msg)

@@ -9,6 +9,8 @@ namespace P2pNet
 
     public class P2pActiveMq : P2pNetBase
     {
+        private string username;
+        private string password;
         private readonly IConnection connection;
         private ISession session;
         private readonly Dictionary<string, MessageListener> listeningDict;
@@ -17,13 +19,12 @@ namespace P2pNet
 
         public P2pActiveMq(IP2pNetClient _client, string _connectionString) : base(_client, _connectionString)
         {
-            messageQueue = new List<P2pNetMessage>();
-            listeningDict = new Dictionary<string, MessageListener>();
-
             // Example: "username,password,activemq:tcp://hostname:61616";
             string[] parts = _connectionString.Split(new string[]{","},StringSplitOptions.None);
+            username = parts[0];
+            password = parts[1];
             IConnectionFactory factory = new ConnectionFactory(parts[2]);
-            connection = factory.CreateConnection(parts[0], parts[1]);
+            ResetJoinVars();
         }
 
         protected override void CarrierProtocolPoll()
@@ -44,8 +45,18 @@ namespace P2pNet
             }
         }
 
+        private void ResetJoinVars()
+        {
+            messageQueue = new List<P2pNetMessage>();
+            listeningDict = new Dictionary<string, MessageListener>();
+            connnection = null;
+            session = null;
+        }
+
         protected override void CarrierProtocolJoin(P2pNetChannelInfo mainChannel, string localId, string localHelloData)
         {
+            ResetJoinVars();
+            connection = factory.CreateConnection(username, password);
             session = connection.CreateSession();
             connection.Start();
             CarrierProtocolListen(localId);
@@ -65,6 +76,7 @@ namespace P2pNet
         {
             session.Close();
             connection.Close();
+            ResetJoinVars();
         }
 
         protected override void CarrierProtocolSend(P2pNetMessage msg)
@@ -97,8 +109,6 @@ namespace P2pNet
             else
                 logger.Warn($"_StopListening(): Not listening to {channel}");
         }
-
-        protected override string CarrierProtocolNewP2pId() => System.Guid.NewGuid().ToString();
 
         protected override void CarrierProtocolAddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = P2pNetDateTime.NowMs;
 

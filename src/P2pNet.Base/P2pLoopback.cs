@@ -14,6 +14,11 @@ namespace P2pNet
 
         public P2pLoopback(IP2pNetClient _client, string _connectionString) : base(_client, _connectionString)
         {
+            ResetJoinVars();
+        }
+
+        private void ResetJoinVars()
+        {
             messageQueue = new List<P2pNetMessage>();
             listeningTo = new List<string>();
         }
@@ -36,6 +41,7 @@ namespace P2pNet
 
         protected override void CarrierProtocolJoin(P2pNetChannelInfo mainChannel, string localPeerId, string localHelloData)
         {
+            ResetJoinVars();
             CarrierProtocolListen(localPeerId);
             OnNetworkJoined(mainChannel, localHelloData);
 
@@ -43,8 +49,7 @@ namespace P2pNet
 
         protected override void CarrierProtocolLeave()
         {
-            messageQueue = new List<P2pNetMessage>();
-            listeningTo = new List<string>();
+            ResetJoinVars();
         }
         protected override void CarrierProtocolSend(P2pNetMessage msg)
         {
@@ -63,11 +68,6 @@ namespace P2pNet
         protected override void CarrierProtocolStopListening(string channel)
         {
             listeningTo.Remove(channel);
-        }
-
-        protected override string CarrierProtocolNewP2pId()
-        {
-            return System.Guid.NewGuid().ToString();
         }
 
         protected override void CarrierProtocolAddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = P2pNetDateTime.NowMs;

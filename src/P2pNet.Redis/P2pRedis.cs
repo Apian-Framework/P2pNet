@@ -12,15 +12,19 @@ namespace P2pNet
         private List<P2pNetMessage> messageQueue;
         private IConnectionMultiplexer ConnectionMux {get; set; }
         protected Func<string, IConnectionMultiplexer> customConnectFactory;
-        protected string connectionString;
 
         public P2pRedis(IP2pNetClient _client, string _connectionString, Func<string, IConnectionMultiplexer> _muxConnectFactory=null) : base(_client, _connectionString)
         {
             // valid connection string is typically: "<host>,password=<password>"
             customConnectFactory =  _muxConnectFactory;
-            connectionString = _connectionString;
-            messageQueue = new List<P2pNetMessage>();
+            ResetJoinVars();
             GetId();
+        }
+
+        private void ResetJoinVars()
+        {
+            messageQueue = new List<P2pNetMessage>();
+            ConnectionMux =null;
         }
 
         private string _GuessRedisProblem(string exMsg)
@@ -35,6 +39,7 @@ namespace P2pNet
                 msg = "Unable to connect to Redis host"; // TODO: parse the bad host out of the message and include it
             return msg;
         }
+
 
         protected override void CarrierProtocolPoll()
         {
@@ -57,8 +62,9 @@ namespace P2pNet
         protected override void CarrierProtocolJoin(P2pNetChannelInfo mainChannel, string localPeerId, string localHelloData)
         {
 
+            ResetJoinVars();
             try {
-                ConnectionMux =  customConnectFactory != null ? customConnectFactory(connectionString) : ConnectionMultiplexer.Connect(connectionString); // Use the passed-in test mux instance if supplied
+                ConnectionMux =  customConnectFactory != null ? customConnectFactory(connectionStr) : ConnectionMultiplexer.Connect(connectionStr); // Use the passed-in test mux instance if supplied
             } catch (StackExchange.Redis.RedisConnectionException ex) {
                 logger.Debug(string.Format("P2pRedis Ctor: StackExchange.Redis.RedisConnectionException:{0}", ex.Message));
                 throw( new Exception($"{_GuessRedisProblem(ex.Message)}"));
@@ -73,10 +79,7 @@ namespace P2pNet
         protected override void CarrierProtocolLeave()
         {
             ConnectionMux.Close();
-            ConnectionMux =null;
-            customConnectFactory = null;
-            connectionString = null;
-            messageQueue = null;
+            ResetJoinVars();
         }
 
         protected override void CarrierProtocolSend(P2pNetMessage msg)
@@ -117,11 +120,6 @@ namespace P2pNet
         protected override void CarrierProtocolStopListening(string channel)
         {
             ConnectionMux.GetSubscriber().Unsubscribe(channel);
-        }
-
-        protected override string CarrierProtocolNewP2pId()
-        {
-            return System.Guid.NewGuid().ToString();
         }
 
         protected override void CarrierProtocolAddReceiptTimestamp(P2pNetMessage msg)
