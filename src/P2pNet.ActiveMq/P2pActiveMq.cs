@@ -11,11 +11,12 @@ namespace P2pNet
     {
         private string username;
         private string password;
-        private readonly IConnection connection;
+        private readonly IConnectionFactory factory; // persists join/leave
+        private IConnection connection;
         private ISession session;
-        private readonly Dictionary<string, MessageListener> listeningDict;
+        private Dictionary<string, MessageListener> listeningDict;
         private List<P2pNetMessage> messageQueue;
-        private readonly object queueLock = new object();
+        private object queueLock = new object();
 
         public P2pActiveMq(IP2pNetClient _client, string _connectionString) : base(_client, _connectionString)
         {
@@ -23,7 +24,7 @@ namespace P2pNet
             string[] parts = _connectionString.Split(new string[]{","},StringSplitOptions.None);
             username = parts[0];
             password = parts[1];
-            IConnectionFactory factory = new ConnectionFactory(parts[2]);
+            factory = new ConnectionFactory(parts[2]);
             ResetJoinVars();
         }
 
@@ -49,7 +50,7 @@ namespace P2pNet
         {
             messageQueue = new List<P2pNetMessage>();
             listeningDict = new Dictionary<string, MessageListener>();
-            connnection = null;
+            connection = null;
             session = null;
         }
 
