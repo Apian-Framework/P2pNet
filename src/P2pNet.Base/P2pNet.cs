@@ -67,7 +67,7 @@ namespace P2pNet
 
         protected void OnNetworkJoined(P2pNetChannelInfo mainChannelInfo, string localHelloData)
         {
-            // called back from _Join() when it is done - which might be async
+            // called back from _Join() when it is done - *** which might be async
             AddChannel(mainChannelInfo, localHelloData ); // Set up channel AND listen
             channelPeers.SetMainChannel( channelPeers.GetChannel(mainChannelInfo.id));
             client.OnPeerJoined( mainChannelInfo.id, localId, localHelloData);
@@ -133,7 +133,7 @@ namespace P2pNet
             foreach (P2pNetChannelPeer chp in chpsThatAreNewlyMissing)
             {
                 logger.Warn($"Update - ChannelPeer {SID(chp.P2pId)}/{chp.ChannelId} is missing. Notifying client.");
-                client.OnPeerMissing(chp.ChannelId, chp.P2pId);
+                client.OnPeerMissing(chp.ChannelId, chp.P2pId); // called from poll() so this is on a client thread
                 chp.MissingNotificationSent = true; // TODO: find a better way to keep from repeating these messages?
             }
 
@@ -143,7 +143,7 @@ namespace P2pNet
             foreach (P2pNetChannelPeer chp in chpsThatHaveTimedOut)
             {
                 logger.Warn($"Update - ChannelPeer {SID(chp.P2pId)}/{chp.ChannelId} timed out. Notifying client and removing peer.");
-                client.OnPeerLeft( chp.ChannelId, chp.P2pId);
+                client.OnPeerLeft( chp.ChannelId, chp.P2pId); // client thread
                 channelPeers.RemoveChannelPeer(chp);
             }
 
