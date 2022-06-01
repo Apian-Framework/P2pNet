@@ -108,7 +108,7 @@ namespace P2pNet
                 foreach (P2pNetChannelPeer c in cpsToRemove)
                     RemoveChannelPeer(c);
 
-                if (Peers.Keys.Contains(peerId)) // should be gone after the above
+                if (Peers.ContainsKey(peerId)) // should be gone after the above
                     Peers.Remove(peerId);
                 return true;
             }
@@ -138,7 +138,7 @@ namespace P2pNet
             if (localHelloData == null)
                 throw( new Exception($"P2pNetChannelPeer.AddChannel(): local channel HelloData cannot be null. Channel: {chan.id}"));
 
-            if (!Channels.Keys.Contains(chan.id))
+            if (!Channels.ContainsKey(chan.id))
             {
                 Channels[chan.id] = new P2pNetChannel(chan, localHelloData);
                 return true;
@@ -150,7 +150,7 @@ namespace P2pNet
         {
             if (chanId == MainChannel?.Id)
                 Logger.Error("RemoveChannel() - Can;t remove main channel");
-            else if (Channels.Keys.Contains(chanId))
+            else if (Channels.ContainsKey(chanId))
             {
                 foreach( string id in CpKeysForChannel(chanId))
                     ChannelPeers.Remove(id);
