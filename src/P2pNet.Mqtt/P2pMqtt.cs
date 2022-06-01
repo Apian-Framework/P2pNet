@@ -12,29 +12,31 @@ using MQTTnet.Client.Subscribing;
 using MQTTnet.Client.Unsubscribing;
 using MQTTnet.Client.Options;
 using Newtonsoft.Json;
+using UniLog;
 
 namespace P2pNet
 {
-    public class P2pMqtt : P2pNetBase
+    public class P2pMqtt : IP2pNetCarrier
     {
         class JoinContext
         {
+            public IP2pNetBase p2pBase;
             public P2pNetChannelInfo mainChannel;
-            public string localPeerId;
             public string localHelloData;
         };
 
         private JoinContext joinContext;
 
-
         private readonly object queueLock = new object();
         private Queue<P2pNetMessage> rcvMessageQueue;
 
-        private readonly MQTTnet.Client.IMqttClient mqttClient;
+        private readonly IMqttClient mqttClient;
         private readonly Dictionary<string,string> connectOpts;
+        public UniLogger logger;
 
-        public P2pMqtt(IP2pNetClient _client, string _connectionString) : base(_client, _connectionString)
+        public P2pMqtt(string _connectionString)
         {
+            logger = UniLogger.GetLogger("P2pNet");
             logger.Verbose($"MQTT ctor");
             ResetJoinVars();
 
@@ -56,43 +58,24 @@ namespace P2pNet
         }
 
 
-        protected override void CarrierProtocolPoll()
-        {
-            // receive polling
-            if (rcvMessageQueue.Count > 0)
-            {
-                Queue<P2pNetMessage> prevMessageQueue;
-                lock(queueLock)
-                {
-                    prevMessageQueue = rcvMessageQueue;
-                    rcvMessageQueue = new Queue<P2pNetMessage>();
-                }
-
-                foreach( P2pNetMessage msg in prevMessageQueue)
-                {
-                    OnReceivedNetMessage(msg.dstChannel, msg);
-                }
-            }
-        }
-
         private void ResetJoinVars()
         {
             joinContext = null;
             rcvMessageQueue = new Queue<P2pNetMessage>();
         }
 
-        protected override void CarrierProtocolJoin(P2pNetChannelInfo mainChannel, string localPeerId, string localHelloData)
+        public void Join(P2pNetChannelInfo mainChannel, IP2pNetBase p2pBase, string localHelloData)
         {
             logger.Verbose($"MQTT join()");
             ResetJoinVars();
 
-            joinContext = new JoinContext(){mainChannel = mainChannel, localPeerId=localPeerId, localHelloData=localHelloData};
+            joinContext = new JoinContext(){p2pBase=p2pBase, mainChannel=mainChannel, localHelloData=localHelloData};
 
             // TODO: add TLS
 
             // Create TCP based options using the builder.
             IMqttClientOptions options = new MqttClientOptionsBuilder()
-                .WithClientId(localPeerId)
+                .WithClientId(p2pBase.GetId())
                 .WithTcpServer(connectOpts["server"])
                 .WithCredentials(connectOpts["user"], connectOpts["pwd"])
                 .WithCleanSession() // p2pnet should not persist
@@ -102,7 +85,7 @@ namespace P2pNet
             mqttClient.ConnectAsync(options, CancellationToken.None);
         }
 
-        protected override void CarrierProtocolLeave()
+        public void Leave()
         {
             // No options, but fails if it's null.
             MqttClientDisconnectOptions options = new MqttClientDisconnectOptions();
@@ -114,7 +97,7 @@ namespace P2pNet
             ResetJoinVars();
         }
 
-        protected override void CarrierProtocolSend(P2pNetMessage msg)
+        public void Send(P2pNetMessage msg)
         {
             logger.Verbose($"MQTT send()");
             // We want this to be fire-n-forget for the caller, so we just do the syncronous
@@ -133,7 +116,7 @@ namespace P2pNet
             mqttClient.PublishAsync(message, CancellationToken.None);
         }
 
-        protected override void CarrierProtocolListen(string channel)
+        public void Listen(string channel)
         {
             // Subscribe to a topic
             logger.Verbose($"MQTT Listen( {channel} )");
@@ -142,14 +125,14 @@ namespace P2pNet
         }
 
 
-        protected override void CarrierProtocolStopListening(string channel)
+        public void StopListening(string channel)
         {
             logger.Verbose($"MQTT StopListening( {channel} )");
             MqttClientUnsubscribeOptions options = new MqttClientUnsubscribeOptionsBuilder().WithTopicFilter(channel).Build();
             mqttClient.UnsubscribeAsync(options, CancellationToken.None);
         }
 
-        protected override void CarrierProtocolAddReceiptTimestamp(P2pNetMessage msg)
+        protected void AddReceiptTimestamp(P2pNetMessage msg)
         {
             msg.rcptTime = P2pNetDateTime.NowMs;
         }
@@ -158,8 +141,8 @@ namespace P2pNet
         private void _OnClientConnected(MqttClientConnectedEventArgs args)
         {
             logger.Verbose($"MQTT _OnClientConnected()");
-             CarrierProtocolListen(joinContext.localPeerId);
-             OnNetworkJoined(joinContext.mainChannel, joinContext.localHelloData);
+             Listen(joinContext.p2pBase.GetId());
+             joinContext.p2pBase.OnNetworkJoined(joinContext.mainChannel, joinContext.localHelloData);
              // OnNetworkJoined needs to potentially queue any reporting to client
         }
 
@@ -168,12 +151,31 @@ namespace P2pNet
             logger.Verbose($"MQTT _OnClientDisconnectConnected(): {args.Reason}");
         }
 
+        public void Poll()
+        {
+            // receive polling
+            if (rcvMessageQueue.Count > 0)
+            {
+                Queue<P2pNetMessage> prevMessageQueue;
+                lock(queueLock)
+                {
+                    prevMessageQueue = rcvMessageQueue;
+                    rcvMessageQueue = new Queue<P2pNetMessage>();
+                }
+
+                foreach( P2pNetMessage msg in prevMessageQueue)
+                {
+                    joinContext.p2pBase.OnReceivedNetMessage(msg.dstChannel, msg);
+                }
+            }
+        }
 
         private void _OnMsgReceived(MqttApplicationMessageReceivedEventArgs args )
         {
             MqttApplicationMessage mqttMsg = args.ApplicationMessage;
             P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(Encoding.UTF8.GetString(mqttMsg.Payload));
-             CarrierProtocolAddReceiptTimestamp(msg);
+            AddReceiptTimestamp(msg);
+
             lock(queueLock)
                 rcvMessageQueue.Enqueue(msg); // queue it up
         }

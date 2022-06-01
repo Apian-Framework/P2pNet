@@ -7,12 +7,14 @@ namespace P2pNet
     // This might be a stupid way to do loopback,
     // especially since messages to mainChannel and localId are already handled
     // in the base class
-    public class P2pLoopback : P2pNetBase
+    public class P2pLoopback : IP2pNetCarrier
+
     {
         List<string> listeningTo;
         List<P2pNetMessage> messageQueue;
+        IP2pNetBase p2pBase;
 
-        public P2pLoopback(IP2pNetClient _client, string _connectionString) : base(_client, _connectionString)
+        public P2pLoopback(string _connectionString)
         {
             ResetJoinVars();
         }
@@ -23,7 +25,7 @@ namespace P2pNet
             listeningTo = new List<string>();
         }
 
-        protected override void CarrierProtocolPoll()
+        public void Poll()
         {
             if (messageQueue.Count > 0)
             {
@@ -34,43 +36,43 @@ namespace P2pNet
 
                 foreach( P2pNetMessage msg in prevMessageQueue)
                 {
-                    OnReceivedNetMessage(msg.dstChannel, msg);
+                    p2pBase.OnReceivedNetMessage(msg.dstChannel, msg);
                 }
             }
         }
 
-        protected override void CarrierProtocolJoin(P2pNetChannelInfo mainChannel, string localPeerId, string localHelloData)
+        public  void Join(P2pNetChannelInfo mainChannel, IP2pNetBase _p2pBase, string localHelloData)
         {
             ResetJoinVars();
-            CarrierProtocolListen(localPeerId);
-            OnNetworkJoined(mainChannel, localHelloData);
-
+            p2pBase = _p2pBase;
+            Listen(p2pBase.GetId());
+            p2pBase.OnNetworkJoined(mainChannel, localHelloData);
         }
 
-        protected override void CarrierProtocolLeave()
+        public void Leave()
         {
             ResetJoinVars();
         }
-        protected override void CarrierProtocolSend(P2pNetMessage msg)
+        public void Send(P2pNetMessage msg)
         {
             if (listeningTo.Contains(msg.dstChannel))
             {
-                CarrierProtocolAddReceiptTimestamp(msg);
+                AddReceiptTimestamp(msg);
                 messageQueue.Add(msg);
             }
         }
 
-        protected override void CarrierProtocolListen(string channel)
+        public void Listen(string channel)
         {
             listeningTo.Add(channel);
         }
 
-        protected override void CarrierProtocolStopListening(string channel)
+        public void StopListening(string channel)
         {
             listeningTo.Remove(channel);
         }
 
-        protected override void CarrierProtocolAddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = P2pNetDateTime.NowMs;
+        protected void AddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = P2pNetDateTime.NowMs;
 
     }
 }

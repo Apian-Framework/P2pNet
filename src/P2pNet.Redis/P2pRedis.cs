@@ -2,23 +2,31 @@
 using System.Collections.Generic;
 using StackExchange.Redis;
 using Newtonsoft.Json;
+using UniLog;
 
 namespace P2pNet
 {
 
-    public class P2pRedis : P2pNetBase
+    public class P2pRedis : IP2pNetCarrier
     {
         private readonly object queueLock = new object();
         private List<P2pNetMessage> messageQueue;
         private IConnectionMultiplexer ConnectionMux {get; set; }
         protected Func<string, IConnectionMultiplexer> customConnectFactory;
 
-        public P2pRedis(IP2pNetClient _client, string _connectionString, Func<string, IConnectionMultiplexer> _muxConnectFactory=null) : base(_client, _connectionString)
+        protected UniLogger logger;
+
+        string connectionStr;
+        protected IP2pNetBase p2pBase;
+
+        public P2pRedis(string _connectionString, Func<string, IConnectionMultiplexer> _muxConnectFactory=null)
         {
+            logger = UniLogger.GetLogger("P2pNet");
+            ResetJoinVars();
             // valid connection string is typically: "<host>,password=<password>"
             customConnectFactory =  _muxConnectFactory;
-            ResetJoinVars();
-            GetId();
+            connectionStr = _connectionString;
+
         }
 
         private void ResetJoinVars()
@@ -41,7 +49,7 @@ namespace P2pNet
         }
 
 
-        protected override void CarrierProtocolPoll()
+        public  void Poll()
         {
             if (messageQueue?.Count > 0)
             {
@@ -54,15 +62,16 @@ namespace P2pNet
 
                 foreach( P2pNetMessage msg in prevMessageQueue)
                 {
-                    OnReceivedNetMessage(msg.dstChannel, msg);
+                    p2pBase.OnReceivedNetMessage(msg.dstChannel, msg);
                 }
             }
         }
 
-        protected override void CarrierProtocolJoin(P2pNetChannelInfo mainChannel, string localPeerId, string localHelloData)
+        public void Join(P2pNetChannelInfo mainChannel, IP2pNetBase p2pNetBase, string localHelloData)
         {
 
             ResetJoinVars();
+            p2pBase = p2pNetBase;
             try {
                 ConnectionMux =  customConnectFactory != null ? customConnectFactory(connectionStr) : ConnectionMultiplexer.Connect(connectionStr); // Use the passed-in test mux instance if supplied
             } catch (StackExchange.Redis.RedisConnectionException ex) {
@@ -72,23 +81,23 @@ namespace P2pNet
                 logger.Debug(string.Format("P2pRedis Ctor: System.ArgumentException:{0}", ex.Message));
                 throw( new Exception($"Bad connection string: {ex.Message}"));
             }
-            CarrierProtocolListen(localPeerId);
-            OnNetworkJoined(mainChannel, localHelloData);
+            Listen(p2pBase.GetId());
+            p2pBase.OnNetworkJoined(mainChannel, localHelloData);
         }
 
-        protected override void CarrierProtocolLeave()
+        public void Leave()
         {
             ConnectionMux.Close();
             ResetJoinVars();
         }
 
-        protected override void CarrierProtocolSend(P2pNetMessage msg)
+        public void Send(P2pNetMessage msg)
         {
             string msgJSON = JsonConvert.SerializeObject(msg);
             ConnectionMux.GetSubscriber().PublishAsync(msg.dstChannel, msgJSON);
         }
 
-        protected override void CarrierProtocolListen(string channel)
+        public void Listen(string channel)
         {
             //_ListenConcurrent(channel);
             _ListenSequential(channel);
@@ -111,18 +120,18 @@ namespace P2pNet
             rcvChannel.OnMessage(channelMsg =>
             {
                 P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(channelMsg.Message);
-                CarrierProtocolAddReceiptTimestamp(msg);
+                AddReceiptTimestamp(msg);
                 lock(queueLock)
                     messageQueue.Add(msg); // queue it up
             });
         }
 
-        protected override void CarrierProtocolStopListening(string channel)
+        public void StopListening(string channel)
         {
             ConnectionMux.GetSubscriber().Unsubscribe(channel);
         }
 
-        protected override void CarrierProtocolAddReceiptTimestamp(P2pNetMessage msg)
+        protected  void AddReceiptTimestamp(P2pNetMessage msg)
         {
             msg.rcptTime = P2pNetDateTime.NowMs;
         }
