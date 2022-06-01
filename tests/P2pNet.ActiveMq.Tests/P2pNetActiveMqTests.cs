@@ -55,10 +55,7 @@ namespace P2pNetTests
         [Ignore("Need to figure out ActiveMq mocking.")]
         public void P2pActiveMq_Ctor()
         {
-            // public P2pActiveMq(IP2pNetClient _client, string _connectionString,  Dictionary<string, string> _config = null)
-            MockP2pNetClient cli = new MockP2pNetClient();
-
-            P2pActiveMq p2p = new P2pActiveMq(cli, "hello?");
+            P2pActiveMq p2p = new P2pActiveMq("hello?");
             Assert.That(p2p, Is.Not.Null );
         }
     }
