@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using Apache.NMS;
 using Apache.NMS.ActiveMQ;
 using Newtonsoft.Json;
+using UniLog;
 
 namespace P2pNet
 {
 
-    public class P2pActiveMq : P2pNetBase
+    public class P2pActiveMq : IP2pNetCarrier
     {
+        private IP2pNetBase p2pBase;
         private string username;
         private string password;
         private readonly IConnectionFactory factory; // persists join/leave
@@ -18,7 +20,9 @@ namespace P2pNet
         private List<P2pNetMessage> messageQueue;
         private object queueLock = new object();
 
-        public P2pActiveMq(IP2pNetClient _client, string _connectionString) : base(_client, _connectionString)
+        public UniLogger logger = UniLogger.GetLogger("P2pNet");
+
+        public P2pActiveMq( string _connectionString)
         {
             // Example: "username,password,activemq:tcp://hostname:61616";
             string[] parts = _connectionString.Split(new string[]{","},StringSplitOptions.None);
@@ -28,7 +32,7 @@ namespace P2pNet
             ResetJoinVars();
         }
 
-        protected override void CarrierProtocolPoll()
+        public void Poll()
         {
             if (messageQueue.Count > 0)
             {
@@ -41,7 +45,7 @@ namespace P2pNet
 
                 foreach( P2pNetMessage msg in prevMessageQueue)
                 {
-                    OnReceivedNetMessage(msg.dstChannel, msg);
+                    p2pBase.OnReceivedNetMessage(msg.dstChannel, msg);
                 }
             }
         }
@@ -54,33 +58,34 @@ namespace P2pNet
             session = null;
         }
 
-        protected override void CarrierProtocolJoin(P2pNetChannelInfo mainChannel, string localId, string localHelloData)
+        public void Join(P2pNetChannelInfo mainChannel, IP2pNetBase _p2pBase, string localHelloData)
         {
             ResetJoinVars();
+            p2pBase = _p2pBase;
             connection = factory.CreateConnection(username, password);
             session = connection.CreateSession();
             connection.Start();
-            CarrierProtocolListen(localId);
-            OnNetworkJoined(mainChannel, localHelloData);
+            Listen(p2pBase.GetId());
+            p2pBase.OnNetworkJoined(mainChannel, localHelloData);
         }
 
         protected void OnMessage(IMessage receivedMsg) // for all topics
         {
             ITextMessage txtMsg = receivedMsg as ITextMessage;
             P2pNetMessage p2pMsg = JsonConvert.DeserializeObject<P2pNetMessage>(txtMsg.Text);
-            CarrierProtocolAddReceiptTimestamp(p2pMsg);
+            AddReceiptTimestamp(p2pMsg);
             lock(queueLock)
                 messageQueue.Add(p2pMsg); // queue it up
         }
 
-        protected override void CarrierProtocolLeave()
+        public void Leave()
         {
             session.Close();
             connection.Close();
             ResetJoinVars();
         }
 
-        protected override void CarrierProtocolSend(P2pNetMessage msg)
+        public void Send(P2pNetMessage msg)
         {
             IDestination dest = session.GetTopic(msg.dstChannel);
             IMessageProducer prod = session.CreateProducer(dest);
@@ -89,7 +94,7 @@ namespace P2pNet
             prod.Send(session.CreateTextMessage(msgJSON));
         }
 
-        protected override void CarrierProtocolListen(string channel)
+        public void Listen(string channel)
         {
             IDestination dest = session.GetTopic(channel);
             IMessageConsumer cons = session.CreateConsumer(dest);
@@ -98,7 +103,7 @@ namespace P2pNet
             cons.Listener += l;
         }
 
-        protected override void CarrierProtocolStopListening(string channel)
+        public void StopListening(string channel)
         {
             if (listeningDict.ContainsKey(channel))
             {
@@ -111,7 +116,7 @@ namespace P2pNet
                 logger.Warn($"_StopListening(): Not listening to {channel}");
         }
 
-        protected override void CarrierProtocolAddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = P2pNetDateTime.NowMs;
+        protected void AddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = P2pNetDateTime.NowMs;
 
     }
 }
