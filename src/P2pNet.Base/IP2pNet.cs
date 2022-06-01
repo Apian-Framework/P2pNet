@@ -19,4 +19,11 @@ namespace P2pNet
         void AddPeer(string peerId);
         void RemovePeer(string peerId);
     }
+
+    public interface IP2pNetBase // carrier protocol uses this
+    {
+        string GetId(); // Local peer's P2pNet ID.
+        void OnNetworkJoined(P2pNetChannelInfo mainChannelInfo, string localHelloData);
+        void OnReceivedNetMessage(string msgChannel, P2pNetMessage msg);
+    }
 }

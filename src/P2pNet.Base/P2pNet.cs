@@ -11,36 +11,25 @@ namespace P2pNet
     // Problem here is that "p2p" is a word: "peer-to-peer" and the default .NET ReSharper rules dealing with digits result
     // in dumb stuff, like a field called "_p2PFooBar" with the 2nd P capped.
 
-    public abstract class P2pNetBase : IP2pNet
+    public class P2pNetBase : IP2pNet, IP2pNetBase
     {
         protected string localId;
         protected IP2pNetClient client;
-        protected string connectionStr; // Transport-dependent format
+        protected IP2pNetCarrier carrier;
         protected P2pNetChannelPeerPairings channelPeers;
         protected Dictionary<string, long> lastMsgIdSent; // last Id sent to each channel. Msg IDs are serial, and PER CHANNEL
         public UniLogger logger;
 
 
         // XXX Need to be able to pass in an ID - and/or a method to create them?
-        protected P2pNetBase(IP2pNetClient _client, string _connectionStr)
+        public P2pNetBase(IP2pNetClient _client, IP2pNetCarrier _carrier)
         {
-            client = _client;  // Do NOT re-init this
-            connectionStr = _connectionStr;
+            client = _client;
+            carrier = _carrier;
             logger = UniLogger.GetLogger("P2pNet");
             localId = NewP2pId();
             ResetJoinStateVars();
         }
-
-        // Carrier Protocol (Transport) specific tasks.
-        // Implementations MUST define these methods
-        protected abstract void CarrierProtocolPoll();
-        protected abstract void CarrierProtocolJoin(P2pNetChannelInfo mainChannel, string localId, string localHelloData);
-        protected abstract void CarrierProtocolSend(P2pNetMessage msg);
-        protected abstract void CarrierProtocolListen(string channel);
-        protected abstract void CarrierProtocolStopListening(string channel);
-        protected abstract void CarrierProtocolLeave();
-        protected abstract void CarrierProtocolAddReceiptTimestamp(P2pNetMessage msg);
-
 
         // IP2pNet
 
@@ -62,10 +51,10 @@ namespace P2pNet
             // on it from a peer that is already in the channelPeers list (for a "real" channel)
             // then that peer it will get its "heardFrom" property updated.
             ResetJoinStateVars();
-            CarrierProtocolJoin(mainChannelInfo, localId, localHelloData); // connects to network and listens on localId
+            carrier.Join(mainChannelInfo, this, localHelloData); // connects to network and listens on localId
         }
 
-        protected void OnNetworkJoined(P2pNetChannelInfo mainChannelInfo, string localHelloData)
+        public void OnNetworkJoined(P2pNetChannelInfo mainChannelInfo, string localHelloData)
         {
             // called back from _Join() when it is done - *** which might be async
             AddChannel(mainChannelInfo, localHelloData ); // Set up channel AND listen
@@ -76,7 +65,7 @@ namespace P2pNet
         public void Leave()
         {
             SendBye(channelPeers.MainChannel.Id);
-            CarrierProtocolLeave();
+            carrier.Leave();
             ResetJoinStateVars(); // resets
         }
 
@@ -91,7 +80,7 @@ namespace P2pNet
 
             //logger.Debug($"Update()");  Too much log.
 
-            CarrierProtocolPoll(); // Do any network polling
+            carrier.Poll(); // Do any network polling
 
             // TODO: iterating over everything this way is kinda brutish.
             // Ought to be able to figure out when things will need to get done in advance and
@@ -100,21 +89,22 @@ namespace P2pNet
 
             // During this update we are looking for:
             //
-            // - Is this a pch we have never heard from at all? (special case - see AddPeer() )
+            // - Is this a chp we have never heard from at all? (special case - see AddPeer() )
             //        Should we say hello? SHould we give up on it?
             //
-            // - Has this pch timed out?
+            // - Has this chp timed out?
             //        report it to the client? delete it from the P2pNet lists?
             //        No. Don't delete it from here. Should consider marking it "missing", though.
             //
-            // - Do we need send a ping to this pch?
-            //      Have we sent something to this pch recently? (do defer the ping)
+            // - Do we need send a ping to this chp?
+            //      Have we sent something to this chp recently? (do defer the ping)
             //
 
             // Keep in mind: under the current thinking a message or ping from a peer on one channel
             // DOES count towards "aliveness" on a different channel
 
             // Hello timeouts
+            // We are in a "hello" exchange with a new (to us) peer - has it timed out?
             List<P2pNetChannelPeer> chpsThatFailedHello = channelPeers.ChannelPeers.Values
                 .Where( chp => chp.HelloTimedOut()).ToList();
             foreach (P2pNetChannelPeer chp in chpsThatFailedHello)
@@ -123,7 +113,7 @@ namespace P2pNet
                 channelPeers.RemoveChannelPeer(chp); // Just drop it
             }
 
-            // Regular timeouts
+            // Regular timeouts involving known peers
 
             // Not long enough to be dropped - but long enough the app ought to know.
             // "Newly" means notification has not been sent to the client
@@ -133,7 +123,7 @@ namespace P2pNet
             foreach (P2pNetChannelPeer chp in chpsThatAreNewlyMissing)
             {
                 logger.Warn($"Update - ChannelPeer {SID(chp.P2pId)}/{chp.ChannelId} is missing. Notifying client.");
-                client.OnPeerMissing(chp.ChannelId, chp.P2pId); // called from poll() so this is on a client thread
+                client.OnPeerMissing(chp.ChannelId, chp.P2pId); // on a client thread since called from poll()
                 chp.MissingNotificationSent = true; // TODO: find a better way to keep from repeating these messages?
             }
 
@@ -156,7 +146,7 @@ namespace P2pNet
                 .Where( chp => chp.NeedsPing() ).ToList();
 
             // filter out chps that we think have dropped (Maybe combine all of this once we've got it down?)
-            chpsThatNeedPing = chpsThatNeedPing.Where(chp => !chpsThatHaveTimedOut.Contains(chp)).ToList();  // Slow?
+            chpsThatNeedPing = chpsThatNeedPing.Where(chp => !chpsThatHaveTimedOut.Contains(chp)).ToList();  // TODO: Slow?
 
             // What are the channels? How many peers in each?
 
@@ -182,6 +172,7 @@ namespace P2pNet
             }
 
             // OK - now for every channel with more than one peer brodcast a ping. For channels with a single peer send directly
+            // TODO: maybe should need 3 recipients to be worth a broadcast ping?
             foreach ( (string chId, List<string> peerIds) in filteredTuples)
             {
                 if (peerIds.Count > 1)
@@ -229,7 +220,7 @@ namespace P2pNet
             {
                 P2pNetChannel chan = channelPeers.GetChannel(chanInfo.id);
                 logger.Info($"Listening to channel: {chanInfo.id}");
-                CarrierProtocolListen(chan.Id);
+                carrier.Listen(chan.Id);
                 if (chan.Info.pingMs > 0)
                     SendHelloMsg(chan.Id, chan.Id ); // broadcast
             }
@@ -240,7 +231,7 @@ namespace P2pNet
         {
             SendBye(chanId);
             channelPeers.RemoveChannel(chanId);
-            CarrierProtocolStopListening(chanId);
+            carrier.StopListening(chanId);
         }
 
 
@@ -257,11 +248,11 @@ namespace P2pNet
             long msgId = NextMsgId(dstChan);
             P2pNetMessage p2pMsg = new P2pNetMessage(dstChan, localId, msgId, msgType, payload);
             p2pMsg.sentTime = P2pNetDateTime.NowMs; // should not happen in ctor
-            CarrierProtocolSend(p2pMsg);
+            carrier.Send(p2pMsg);
             UpdateSendStats(dstChan, msgId);
         }
 
-        protected void OnReceivedNetMessage(string msgChannel, P2pNetMessage msg)
+        public void OnReceivedNetMessage(string msgChannel, P2pNetMessage msg)
         {
             // NOTE: msgChannel is the channel on which the message was received,
             // which is by definition the same as msg.dstChannel
