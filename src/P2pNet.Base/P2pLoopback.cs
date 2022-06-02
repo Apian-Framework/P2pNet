@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Collections.Generic;
 
 namespace P2pNet
@@ -10,9 +11,14 @@ namespace P2pNet
     public class P2pLoopback : IP2pNetCarrier
 
     {
-        List<string> listeningTo;
-        List<P2pNetMessage> messageQueue;
-        IP2pNetBase p2pBase;
+        class JoinState
+        {
+            public SynchronizationContext mainSyncCtx;
+            public List<string> listeningTo;
+            public IP2pNetBase p2pBase;
+        }
+
+        private JoinState joinState;
 
         public P2pLoopback(string _connectionString)
         {
@@ -21,55 +27,57 @@ namespace P2pNet
 
         private void ResetJoinVars()
         {
-            messageQueue = new List<P2pNetMessage>();
-            listeningTo = new List<string>();
+            joinState = null;
         }
 
         public void Poll()
         {
-            if (messageQueue.Count > 0)
-            {
-                // No locking is needed for local loopback
-                List<P2pNetMessage> prevMessageQueue;
-                prevMessageQueue = messageQueue;
-                messageQueue = new List<P2pNetMessage>();
-
-                foreach( P2pNetMessage msg in prevMessageQueue)
-                {
-                    p2pBase.OnReceivedNetMessage(msg.dstChannel, msg);
-                }
-            }
         }
 
         public  void Join(P2pNetChannelInfo mainChannel, IP2pNetBase _p2pBase, string localHelloData)
         {
             ResetJoinVars();
-            p2pBase = _p2pBase;
-            Listen(p2pBase.GetId());
-            p2pBase.OnNetworkJoined(mainChannel, localHelloData);
+            joinState = new JoinState()
+            {
+                listeningTo = new List<string>(),
+                p2pBase=_p2pBase,
+                mainSyncCtx = SynchronizationContext.Current
+            };
+
+            Listen(_p2pBase.GetId());
+            _p2pBase.OnNetworkJoined(mainChannel, localHelloData);
         }
 
         public void Leave()
         {
             ResetJoinVars();
         }
+
         public void Send(P2pNetMessage msg)
         {
-            if (listeningTo.Contains(msg.dstChannel))
+            if (joinState.listeningTo.Contains(msg.dstChannel))
             {
                 AddReceiptTimestamp(msg);
-                messageQueue.Add(msg);
+                if (joinState.mainSyncCtx != null)
+                {
+                    joinState.mainSyncCtx.Post( new SendOrPostCallback( (o) => {
+                        joinState?.p2pBase?.OnReceivedNetMessage(msg.dstChannel, msg);
+                    } ), null);
+                } else {
+                    joinState.p2pBase.OnReceivedNetMessage(msg.dstChannel, msg);
+                }
+
             }
         }
 
         public void Listen(string channel)
         {
-            listeningTo.Add(channel);
+            joinState.listeningTo.Add(channel);
         }
 
         public void StopListening(string channel)
         {
-            listeningTo.Remove(channel);
+            joinState.listeningTo.Remove(channel);
         }
 
         protected void AddReceiptTimestamp(P2pNetMessage msg) => msg.rcptTime = P2pNetDateTime.NowMs;

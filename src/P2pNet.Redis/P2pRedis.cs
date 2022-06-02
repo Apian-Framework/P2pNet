@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Collections.Generic;
 using StackExchange.Redis;
 using Newtonsoft.Json;
@@ -9,15 +10,19 @@ namespace P2pNet
 
     public class P2pRedis : IP2pNetCarrier
     {
-        private readonly object queueLock = new object();
-        private List<P2pNetMessage> messageQueue;
-        private IConnectionMultiplexer ConnectionMux {get; set; }
+        class JoinState
+        {
+            public SynchronizationContext mainSyncCtx;
+            public IP2pNetBase p2pBase;
+            public P2pNetChannelInfo mainChannel;
+            public string localHelloData;
+            public IConnectionMultiplexer connectionMux;
+        };
+        private JoinState joinState;
+
         protected Func<string, IConnectionMultiplexer> customConnectFactory;
-
         protected UniLogger logger;
-
         string connectionStr;
-        protected IP2pNetBase p2pBase;
 
         public P2pRedis(string _connectionString, Func<string, IConnectionMultiplexer> _muxConnectFactory=null)
         {
@@ -26,13 +31,11 @@ namespace P2pNet
             // valid connection string is typically: "<host>,password=<password>"
             customConnectFactory =  _muxConnectFactory;
             connectionStr = _connectionString;
-
         }
 
         private void ResetJoinVars()
         {
-            messageQueue = new List<P2pNetMessage>();
-            ConnectionMux =null;
+            joinState = null;
         }
 
         private string _GuessRedisProblem(string exMsg)
@@ -49,31 +52,22 @@ namespace P2pNet
         }
 
 
-        public  void Poll()
+        public  void Poll() {}
+
+        public void Join(P2pNetChannelInfo mainChannel, IP2pNetBase p2pBase, string localHelloData)
         {
-            if (messageQueue?.Count > 0)
-            {
-                List<P2pNetMessage> prevMessageQueue;
-                lock(queueLock)
-                {
-                    prevMessageQueue = messageQueue;
-                    messageQueue = new List<P2pNetMessage>();
-                }
-
-                foreach( P2pNetMessage msg in prevMessageQueue)
-                {
-                    p2pBase.OnReceivedNetMessage(msg.dstChannel, msg);
-                }
-            }
-        }
-
-        public void Join(P2pNetChannelInfo mainChannel, IP2pNetBase p2pNetBase, string localHelloData)
-        {
-
             ResetJoinVars();
-            p2pBase = p2pNetBase;
+
+            joinState = new JoinState()
+            {
+                p2pBase=p2pBase,
+                mainChannel=mainChannel,
+                localHelloData=localHelloData,
+                mainSyncCtx = SynchronizationContext.Current
+            };
+
             try {
-                ConnectionMux =  customConnectFactory != null ? customConnectFactory(connectionStr) : ConnectionMultiplexer.Connect(connectionStr); // Use the passed-in test mux instance if supplied
+                joinState.connectionMux =  customConnectFactory != null ? customConnectFactory(connectionStr) : ConnectionMultiplexer.Connect(connectionStr); // Use the passed-in test mux instance if supplied
             } catch (StackExchange.Redis.RedisConnectionException ex) {
                 logger.Debug(string.Format("P2pRedis Ctor: StackExchange.Redis.RedisConnectionException:{0}", ex.Message));
                 throw( new Exception($"{_GuessRedisProblem(ex.Message)}"));
@@ -82,19 +76,20 @@ namespace P2pNet
                 throw( new Exception($"Bad connection string: {ex.Message}"));
             }
             Listen(p2pBase.GetId());
+
             p2pBase.OnNetworkJoined(mainChannel, localHelloData);
         }
 
         public void Leave()
         {
-            ConnectionMux.Close();
+            joinState.connectionMux?.Close();
             ResetJoinVars();
         }
 
         public void Send(P2pNetMessage msg)
         {
             string msgJSON = JsonConvert.SerializeObject(msg);
-            ConnectionMux.GetSubscriber().PublishAsync(msg.dstChannel, msgJSON);
+            joinState.connectionMux.GetSubscriber().PublishAsync(msg.dstChannel, msgJSON);
         }
 
         public void Listen(string channel)
@@ -115,20 +110,28 @@ namespace P2pNet
 
         private void _ListenSequential(string channel)
         {
-            var rcvChannel = ConnectionMux.GetSubscriber().Subscribe(channel);
+            var rcvChannel = joinState.connectionMux.GetSubscriber().Subscribe(channel);
 
             rcvChannel.OnMessage(channelMsg =>
             {
                 P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(channelMsg.Message);
                 AddReceiptTimestamp(msg);
-                lock(queueLock)
-                    messageQueue.Add(msg); // queue it up
+
+                if (joinState.mainSyncCtx != null)
+                {
+                    joinState.mainSyncCtx.Post( new SendOrPostCallback( (o) => {
+                        joinState?.p2pBase?.OnReceivedNetMessage(msg.dstChannel, msg);
+                    } ), null);
+                } else {
+                    joinState.p2pBase.OnReceivedNetMessage(msg.dstChannel, msg);
+                }
+
             });
         }
 
         public void StopListening(string channel)
         {
-            ConnectionMux.GetSubscriber().Unsubscribe(channel);
+            joinState.connectionMux.GetSubscriber().Unsubscribe(channel);
         }
 
         protected  void AddReceiptTimestamp(P2pNetMessage msg)
