@@ -20,15 +20,13 @@ namespace P2pNet
     {
         class JoinContext
         {
+            public SynchronizationContext mainSyncCtx; // might be null
             public IP2pNetBase p2pBase;
             public P2pNetChannelInfo mainChannel;
             public string localHelloData;
         };
 
         private JoinContext joinContext;
-
-        private readonly object queueLock = new object();
-        private Queue<P2pNetMessage> rcvMessageQueue;
 
         private readonly IMqttClient mqttClient;
         private readonly Dictionary<string,string> connectOpts;
@@ -37,7 +35,7 @@ namespace P2pNet
         public P2pMqtt(string _connectionString)
         {
             logger = UniLogger.GetLogger("P2pNet");
-            logger.Verbose($"MQTT ctor");
+            logger.Verbose($"MQTT ctor (thread: {Environment.CurrentManagedThreadId})");
             ResetJoinVars();
 
             // {  "host":"<hostname>"
@@ -61,15 +59,22 @@ namespace P2pNet
         private void ResetJoinVars()
         {
             joinContext = null;
-            rcvMessageQueue = new Queue<P2pNetMessage>();
         }
 
         public void Join(P2pNetChannelInfo mainChannel, IP2pNetBase p2pBase, string localHelloData)
         {
-            logger.Verbose($"MQTT join()");
+
+
+            logger.Verbose($"MQTT join() (thread: {Environment.CurrentManagedThreadId})");
             ResetJoinVars();
 
-            joinContext = new JoinContext(){p2pBase=p2pBase, mainChannel=mainChannel, localHelloData=localHelloData};
+            joinContext = new JoinContext()
+            {
+                p2pBase=p2pBase,
+                mainChannel=mainChannel,
+                localHelloData=localHelloData,
+                mainSyncCtx = SynchronizationContext.Current
+            };
 
             // TODO: add TLS
 
@@ -99,7 +104,7 @@ namespace P2pNet
 
         public void Send(P2pNetMessage msg)
         {
-            logger.Verbose($"MQTT send()");
+            logger.Verbose($"MQTT send() (thread: {Environment.CurrentManagedThreadId})");
             // We want this to be fire-n-forget for the caller, so we just do the syncronous
             // message construction and queue up the result.
             string msgJSON = JsonConvert.SerializeObject(msg);
@@ -119,7 +124,7 @@ namespace P2pNet
         public void Listen(string channel)
         {
             // Subscribe to a topic
-            logger.Verbose($"MQTT Listen( {channel} )");
+            logger.Verbose($"MQTT Listen( {channel} ) thread: {Environment.CurrentManagedThreadId}");
             MqttClientSubscribeOptions options = new MqttClientSubscribeOptionsBuilder().WithTopicFilter(channel).Build();
             mqttClient.SubscribeAsync(options, CancellationToken.None);
         }
@@ -127,7 +132,7 @@ namespace P2pNet
 
         public void StopListening(string channel)
         {
-            logger.Verbose($"MQTT StopListening( {channel} )");
+            logger.Verbose($"MQTT StopListening( {channel} ) thread: {Environment.CurrentManagedThreadId}");
             MqttClientUnsubscribeOptions options = new MqttClientUnsubscribeOptionsBuilder().WithTopicFilter(channel).Build();
             mqttClient.UnsubscribeAsync(options, CancellationToken.None);
         }
@@ -140,9 +145,20 @@ namespace P2pNet
         // Async Handlers
         private void _OnClientConnected(MqttClientConnectedEventArgs args)
         {
-            logger.Verbose($"MQTT _OnClientConnected()");
+            logger.Verbose($"MQTT _OnClientConnected() thread: {Environment.CurrentManagedThreadId}");
              Listen(joinContext.p2pBase.GetId());
-             joinContext.p2pBase.OnNetworkJoined(joinContext.mainChannel, joinContext.localHelloData);
+
+
+          if (joinContext.mainSyncCtx != null)
+            {
+                joinContext.mainSyncCtx.Send( new SendOrPostCallback( (o) => {
+                    joinContext.p2pBase.OnNetworkJoined(joinContext.mainChannel, joinContext.localHelloData);
+                } ), null);
+            } else {
+                joinContext.p2pBase.OnNetworkJoined(joinContext.mainChannel, joinContext.localHelloData);
+            }
+
+
              // OnNetworkJoined needs to potentially queue any reporting to client
         }
 
@@ -151,33 +167,25 @@ namespace P2pNet
             logger.Verbose($"MQTT _OnClientDisconnectConnected(): {args.Reason}");
         }
 
-        public void Poll()
-        {
-            // receive polling
-            if (rcvMessageQueue.Count > 0)
-            {
-                Queue<P2pNetMessage> prevMessageQueue;
-                lock(queueLock)
-                {
-                    prevMessageQueue = rcvMessageQueue;
-                    rcvMessageQueue = new Queue<P2pNetMessage>();
-                }
-
-                foreach( P2pNetMessage msg in prevMessageQueue)
-                {
-                    joinContext.p2pBase.OnReceivedNetMessage(msg.dstChannel, msg);
-                }
-            }
-        }
+        public void Poll() {}
 
         private void _OnMsgReceived(MqttApplicationMessageReceivedEventArgs args )
         {
+            logger.Verbose($"MQTT _OnMsgReceived() thread: {Environment.CurrentManagedThreadId}");
             MqttApplicationMessage mqttMsg = args.ApplicationMessage;
             P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(Encoding.UTF8.GetString(mqttMsg.Payload));
             AddReceiptTimestamp(msg);
 
-            lock(queueLock)
-                rcvMessageQueue.Enqueue(msg); // queue it up
+            if (joinContext.mainSyncCtx != null)
+            {
+                joinContext.mainSyncCtx.Send( new SendOrPostCallback( (o) => {
+                    logger.Verbose($"XXXXXXXX thread: {Environment.CurrentManagedThreadId}");
+                    joinContext.p2pBase.OnReceivedNetMessage(msg.dstChannel, msg);
+                } ), null);
+            } else {
+                joinContext.p2pBase.OnReceivedNetMessage(msg.dstChannel, msg);
+            }
+
         }
 
     }
