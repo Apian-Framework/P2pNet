@@ -64,7 +64,8 @@ namespace P2pNet
 
         public void Leave()
         {
-            SendBye(channelPeers.MainChannel.Id);
+            if (channelPeers.MainChannel != null)
+                SendBye(channelPeers.MainChannel.Id); // might not have been set up yet
             carrier.Leave();
             ResetJoinStateVars(); // resets
         }

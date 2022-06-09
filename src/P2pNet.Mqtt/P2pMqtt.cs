@@ -84,8 +84,8 @@ namespace P2pNet
                 .WithCleanSession() // p2pnet should not persist
                 .Build();
 
-            // from here downs runs async, Join() just returns
-            mqttClient.ConnectAsync(options, CancellationToken.None);
+             mqttClient.ConnectAsync(options, CancellationToken.None).Wait(); // must Wait() in order for calling code to catch exceptions
+
         }
 
         public void Leave()
@@ -158,7 +158,7 @@ namespace P2pNet
 
         private void _OnClientDisconnected(MqttClientDisconnectedEventArgs args)
         {
-            logger.Verbose($"MQTT _OnClientDisconnectConnected(): {args.Reason}");
+            logger.Info($"MQTT _OnClientDisconnected(): {args.Reason}");
         }
 
         public void Poll() {}
