@@ -8,10 +8,9 @@ using UnityLibp2p;
 
 namespace P2pNet
 {
-
+#if  UNITY_WEBGL && !UNITY_EDITOR
     public class P2pJsLibp2p : IP2pNetCarrier, ILibp2pClient
     {
-
         class JoinState
         {
             public SynchronizationContext mainSyncCtx; // might be null
@@ -211,4 +210,9 @@ namespace P2pNet
         }
 
     }
+#else
+
+    // Unity WEBGL only
+
+#endif
 }
