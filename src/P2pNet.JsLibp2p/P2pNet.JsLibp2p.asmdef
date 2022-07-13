@@ -1,5 +1,5 @@
 {
-    "name": "P2pLibp2p",
+    "name": "P2pJsLibp2p",
     "rootNamespace": "",
     "references": [
         "P2pNet",
