@@ -9,7 +9,7 @@ using UnityLibp2p;
 namespace P2pNet
 {
 
-    public class P2pLibp2p : IP2pNetCarrier, ILibp2pClient
+    public class P2pJsLibp2p : IP2pNetCarrier, ILibp2pClient
     {
 
         class JoinState
@@ -36,7 +36,7 @@ namespace P2pNet
 
         public UniLogger logger;
 
-        public P2pLibp2p( string _connectionString)
+        public P2pJsLibp2p( string _connectionString)
         {
             logger = UniLogger.GetLogger("P2pNet");
 
@@ -190,7 +190,7 @@ namespace P2pNet
         }
         public void OnMessage(string sourceId, string topic, string payload)
         {
-            logger.Verbose($"P2pLibP2p OnMessage() thread: {Environment.CurrentManagedThreadId}");
+            logger.Verbose($"P2pJsLibp2p OnMessage() thread: {Environment.CurrentManagedThreadId}");
             P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(payload);
 
             AddReceiptTimestamp(msg);

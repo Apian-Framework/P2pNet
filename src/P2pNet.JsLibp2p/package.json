@@ -1,9 +1,9 @@
 {
-  "name": "com.apian-framework.p2pnet.libp2p",
-  "displayName": "P2pNet.Libp2p",
+  "name": "com.apian-framework.p2pnet.jslibp2p",
+  "displayName": "P2pNet.JsLibp2p",
   "version": "1.0.0",
   "unity": "2018.1",
-  "description": "P2pNet implmentation using libp2p pub/sub",
+  "description": "P2pNet implmentation using js-libp2p pub/sub",
   "keywords": [
     "network",
     "unity"
