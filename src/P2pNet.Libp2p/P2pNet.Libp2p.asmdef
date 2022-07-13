@@ -1,0 +1,20 @@
+{
+    "name": "P2pLibp2p",
+    "rootNamespace": "",
+    "references": [
+        "P2pNet",
+        "UniLog",
+        "UnityLibp2p"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "Newtonsoft.Json.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
