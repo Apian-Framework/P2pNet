@@ -21,13 +21,14 @@ namespace P2pNet
         public UniLogger logger;
 
 
-        // XXX Need to be able to pass in an ID - and/or a method to create them?
-        public P2pNetBase(IP2pNetClient _client, IP2pNetCarrier _carrier)
+        // P2pNet Id is NOT necessarily the underlying network address (or id) of the peer.
+        // It _is_, however, the pubsub channel for direct messages.
+        public P2pNetBase(IP2pNetClient _client, IP2pNetCarrier _carrier, string localP2pNetId = null)
         {
             client = _client;
             carrier = _carrier;
             logger = UniLogger.GetLogger("P2pNet");
-            localId = NewP2pId();
+            localId = localP2pNetId ?? NewP2pId();
             ResetJoinStateVars();
         }
 
@@ -389,7 +390,7 @@ namespace P2pNet
 
         // Some specific messages
 
-        protected void SendHelloMsg(string destChannel, string subjectChannel, string helloMsgType = P2pNetMessage.MsgHello)
+        public void SendHelloMsg(string destChannel, string subjectChannel, string helloMsgType = P2pNetMessage.MsgHello)
         {
             // When joining a new channel, destChannel and subjectChannel are typically the same.
             // When replying, or sending to a single peer, the destChannel is usually the recipient peer

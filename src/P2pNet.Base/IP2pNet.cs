@@ -23,7 +23,9 @@ namespace P2pNet
     public interface IP2pNetBase // carrier protocol uses this
     {
         string GetId(); // Local peer's P2pNet ID.
+        void SendHelloMsg(string destChannel, string subjectChannel, string helloMsgType = P2pNetMessage.MsgHello); // might be needed
         void OnNetworkJoined(P2pNetChannelInfo mainChannelInfo, string localHelloData);
         void OnReceivedNetMessage(string msgChannel, P2pNetMessage msg);
+
     }
 }
