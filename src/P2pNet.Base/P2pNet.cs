@@ -495,9 +495,10 @@ namespace P2pNet
         {
             channelPeers.RemoveChannelPeer(srcChannel, msg.srcId);
 
+            client.OnPeerLeft(srcChannel, msg.srcId);
+
             if (srcChannel == channelPeers.MainChannel.Id)
             {
-                client.OnPeerLeft(srcChannel, msg.srcId);
                 channelPeers.RemovePeer(msg.srcId);
             }
         }
