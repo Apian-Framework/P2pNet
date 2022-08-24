@@ -143,7 +143,7 @@ namespace P2pNet
             if ( Math.Abs((theta - theStats.avgOffsetMs)) > 2*theStats.offsetSigma && theStats.sampleCount > 6)
             {
                 logger.Warn($"!!! CompleteSync() - Offset {theta} is outside tolerance: ({theStats.avgOffsetMs-2*theStats.offsetSigma}, {theStats.avgOffsetMs+2*theStats.offsetSigma}) Ignoring sample");
-            } else if (Math.Abs(lag - theStats.avgLagMs) > 2*theStats.lagSigma  && theStats.sampleCount > 8) {
+            } else if ((lag - theStats.avgLagMs) > 2*theStats.lagSigma  && theStats.sampleCount > 8) {
                 logger.Warn($"!!! CompleteSync() - Lag {lag} is outside tolerance:  (0, {theStats.avgLagMs+2*theStats.lagSigma}) Ignoring sample");
             } else {
                 UpdateStats( theStats, TraditionalEwma, samplesN, lag, theta ); // Param is N in "N-sample moving avg
@@ -153,7 +153,7 @@ namespace P2pNet
             if ( Math.Abs((theta - theStats.avgOffsetMs)) > 2*theStats.offsetSigma && theStats.sampleCount > 6)
             {
                 logger.Warn($"!!! CompleteSync() - Test offset {theta} is outside tolerance: ({theStats.avgOffsetMs-2*theStats.offsetSigma}, {theStats.avgOffsetMs+2*theStats.offsetSigma}) Ignoring sample");
-            } else if (Math.Abs(lag - theStats.avgLagMs) > 2*theStats.lagSigma  && theStats.sampleCount > 8) {
+            } else if ((lag - theStats.avgLagMs) > 2*theStats.lagSigma  && theStats.sampleCount > 8) {
                 logger.Warn($"!!! CompleteSync() - Test Lag {lag} is outside tolerance:  (0, {theStats.avgLagMs+2*theStats.lagSigma}) Ignoring sample");
             } else {
                UpdateStats(theStats, ScatterShot, samplesN, lag, theta );
