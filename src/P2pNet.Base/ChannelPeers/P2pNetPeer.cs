@@ -226,11 +226,8 @@ namespace P2pNet
             // sample count is incremented when this data is applied by the calling func
 
             double delta = newVal - curAvg; // avg before newVal is applied
-
             double avg = curAvg  + delta /(curSampleCnt+1);
-
             double aggrVariance = curAggrVariance + delta*delta;
-
             return (avg, aggrVariance);
         }
 
@@ -250,10 +247,13 @@ namespace P2pNet
 
             UniLogger.GetLogger("P2pNetSync").Debug($"*** Stats: alpha: {alpha}");
 
+            // see: https://en.wikipedia.org/wiki/Moving_average#Exponentially_weighted_moving_variance_and_standard_deviation
             double delta = newVal - curAvg;
-            double avg = curAvg + (alpha * delta);
+            double avg = curAvg + alpha * delta;
 
-            double aggrVariance = curAggrVariance + delta * delta; // M2 is NOT weighted
+            double curVariance = curAggrVariance / curSampleCnt;
+            double newVariance = (1.0 - alpha) * (curVariance + alpha * delta * delta);
+            double aggrVariance = newVariance * (curSampleCnt+1); // This is super-fugly... does it even work?
 
             return (avg, aggrVariance);
         }
@@ -262,7 +262,7 @@ namespace P2pNet
 
         public static (double,double) TraditionalEwma2(long newVal, double curAvg, double curVariance, long sampleCnt, object avgOverSampleCountObj)
         {
-            // Does NOT average the variaces. Instead calcs the variance ot the new avg val
+
             if (sampleCnt == 0)
                 return (newVal, 0);
 
@@ -299,8 +299,10 @@ namespace P2pNet
             UniLogger.GetLogger("P2pNetSync").Debug($"*** Stats: avgOverPeriodMs: {avgOverPeriodMs}");
             UniLogger.GetLogger("P2pNetSync").Debug($"*** Stats: alphaT: {alpha}");
 
+            // see: https://en.wikipedia.org/wiki/Moving_average#Exponentially_weighted_moving_variance_and_standard_deviation
+
             double delta = newVal - curAvg;
-            double avg = curAvg + (long)(alpha * delta);
+            double avg = curAvg + alpha * delta;
 
             double variance = (1.0 - alpha) * (curVariance + alpha * delta * delta);
 
