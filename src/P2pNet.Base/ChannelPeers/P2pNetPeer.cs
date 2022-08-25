@@ -121,10 +121,12 @@ namespace P2pNet
         {
             p2pId = _p2pId;
             logger = UniLogger.GetLogger("P2pNetSync");
-            currentStats = new TheStats("TraditionalEwma(8)", TraditionalEwma, 8, TheStats.StatsVarianceMethod.EWMA); // Param is N in "N-sample moving avg"
+            currentStats = new TheStats("IrregularPeriodlEwma", IrregularPeriodlEwma, 3, TheStats.StatsVarianceMethod.EWMA); // param is N where "sampled over" time is N*avgSamplePerod
+
             testStatsList = new List<TheStats>();
+            testStatsList.Add( new TheStats("TraditionalEwma(8)", TraditionalEwma, 8, TheStats.StatsVarianceMethod.EWMA) );
+            // testStatsList.Add(new TheStats("IrregularPeriodlEwma", IrregularPeriodlEwma, null, TheStats.StatsVarianceMethod.EWMA) ); // Param is N in "N-sample moving avg"
             testStatsList.Add( new TheStats("JustAllMean", JustAllMean, null,  TheStats.StatsVarianceMethod.Welford ) );
-            testStatsList.Add(new TheStats("IrregularPeriodlEwma", IrregularPeriodlEwma, null, TheStats.StatsVarianceMethod.EWMA) );
         }
 
         public  int NetworkLagMs => (int)Math.Round(currentStats.netLag.avgVal);// round trip time / 2
@@ -293,7 +295,7 @@ namespace P2pNet
 // - -------- Below here still needs updating to using aggRVariance
 
 
-        public (double,double) IrregularPeriodlEwma(long newVal, double curAvg, double curRunningVariance, long curSampleCnt, object _)
+        public (double,double) IrregularPeriodlEwma(long newVal, double curAvg, double curRunningVariance, long curSampleCnt, object multiplierObj)
         {
             // https://en.wikipedia.org/wiki/Moving_average#Application_to_measuring_computer_performance
 
@@ -303,7 +305,7 @@ namespace P2pNet
             // dT is time between ths sample and the previous one
             // avgOverPeriodMs is the time in ms over which the reading is said to be averaged
             int dT = currentSyncPeriodMs;
-            int avgOverPeriodMs = 3 * avgSyncPeriodMs;
+            int avgOverPeriodMs = (int)multiplierObj * avgSyncPeriodMs;
 
             //  alpha is weignt of new sample
             double alpha = (curSampleCnt < 4)
@@ -311,7 +313,7 @@ namespace P2pNet
                         :  1.0 - Math.Exp( - (double)dT / avgOverPeriodMs); // nomical alpha calculation
 
             UniLogger.GetLogger("P2pNetSync").Debug($"*** Stats: avgOverPeriodMs: {avgOverPeriodMs}");
-            UniLogger.GetLogger("P2pNetSync").Debug($"*** Stats: alphaT: {alpha}");
+            UniLogger.GetLogger("P2pNetSync").Debug($"*** Stats: alpha: {alpha}");
 
             // see: https://en.wikipedia.org/wiki/Moving_average#Exponentially_weighted_moving_variance_and_standard_deviation
 
