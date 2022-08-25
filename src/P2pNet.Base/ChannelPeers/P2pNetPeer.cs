@@ -47,30 +47,55 @@ namespace P2pNet
 
     public class PeerClockSyncCalc
     {
+
+        public class TrackedValue
+        {
+            public double avgVal;
+            public double sigma;  // standard deviation
+
+            // accumulators, etc.
+            public double varianceAccum; // use depends on VarianceMethod
+
+        }
+
         public class TheStats
         {
+            public enum StatsVarianceMethod
+            {
+                EWMA, //https://en.wikipedia.org/wiki/Moving_average#Exponentially_weighted_moving_variance_and_standard_deviation
+                Welford // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+            }
+
+            public string displayName; // really only needed when testing/comparing
+
             // current measurements
-            public long sampleCount;
             public long timeStampMs;
             public int currentLag; // the single data point
             public int currentOffsetMs; // local systime + offset = remote peer's sysTime
+            public long sampleCount; // accepted samples. For values
+            public long varianceSampleCount; // rejected samples are included when calculating variance
+
+            public TrackedValue clockOffset;
+            public TrackedValue netLag;
+
+            public Func<long,double,double,long,object,(double,double)> AvgFunc;
+            public object AvgFuncParams;
+            public StatsVarianceMethod VarianceMethod;
+
+            public TheStats(string name, Func<long,double,double,long,object,(double,double)> avgFunc, object avgFuncParams, StatsVarianceMethod varianceMethod)
+            {
+                displayName = name;
+                AvgFunc = avgFunc;
+                AvgFuncParams = avgFuncParams;
+                VarianceMethod = varianceMethod;
+                clockOffset = new TrackedValue();
+                netLag = new TrackedValue();
+            }
 
             // stats
-            public double avgLagMs; // computed EWMA
-            public double lagAggrVariance;  // this, sometimes called M2, M2 is the aggregate (running sum) of the squares of
-                                 // all of the the (value - meanBeforeValueApplied) "deltas"
-                                 // See https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
-            public double lagSigma; // standard variation: sqrt( aggrVariance / sampleCnt)
-            public double lagM2;
-
-            public double avgOffsetMs;
-            public double offsetAggrVariance;
-            public double offsetSigma;
-
-
-            public void LogStats(UniLogger logger, string statsName)
+            public void LogStats(UniLogger logger, string prefixMsg)
             {
-                logger.Verbose($"*** Stats: {statsName}, Count: {sampleCount}, AvgOffset: {avgOffsetMs}, OffsetSigma: {offsetSigma}, AvgLag: {avgLagMs}, LagSigma: {lagSigma}");
+                logger.Verbose($"*** Stats: {prefixMsg} Count: {sampleCount}/{varianceSampleCount} , Offset: {clockOffset.avgVal:F3}, OffsetSigma: {clockOffset.sigma:F3}, Lag: {netLag.avgVal:F3}, LagSigma: {netLag.sigma:F3}, Name: {displayName}");
             }
 
         }
@@ -78,7 +103,7 @@ namespace P2pNet
         public UniLogger logger;
         public string p2pId;
         protected TheStats currentStats;
-        protected TheStats testStats; // using this during development to compare
+        protected IList<TheStats> testStatsList; // using this during development to compare
 
         protected double avgSyncPeriodMs = 15000; // hard-coded start val (note there can be different channels w/different periods)
 
@@ -95,12 +120,13 @@ namespace P2pNet
         {
             p2pId = _p2pId;
             logger = UniLogger.GetLogger("P2pNetSync");
-            currentStats = new TheStats();
-            testStats = new TheStats();
+            currentStats = new TheStats("TraditionalEwma(8)", TraditionalEwma, 8, TheStats.StatsVarianceMethod.EWMA); // Param is N in "N-sample moving avg"
+            testStatsList = new List<TheStats>();
+            testStatsList.Add( new TheStats("JustAllMean", JustAllMean, null,  TheStats.StatsVarianceMethod.Welford ) );
         }
 
-        public  int NetworkLagMs => (int)Math.Round(currentStats.avgLagMs);// round trip time / 2
-        public int ClockOffsetMs => (int)Math.Round(currentStats.avgOffsetMs); // local systime + offset = remote peer's sysTime
+        public  int NetworkLagMs => (int)Math.Round(currentStats.netLag.avgVal);// round trip time / 2
+        public int ClockOffsetMs => (int)Math.Round(currentStats.clockOffset.avgVal); // local systime + offset = remote peer's sysTime
 
         public void ReportInterimSyncProgress() { lastSyncActivityMs = P2pNetDateTime.NowMs;}
 
@@ -119,7 +145,7 @@ namespace P2pNet
         {
             // TODO: really create a new one every call?
             return new PeerClockSyncInfo(p2pId,  currentStats.sampleCount,  (int)(P2pNetDateTime.NowMs - currentStats.timeStampMs),
-                (int)currentStats.avgOffsetMs, currentStats.offsetSigma,  (int)currentStats.avgLagMs, currentStats.lagSigma);
+                (int)Math.Round(currentStats.clockOffset.avgVal), currentStats.clockOffset.sigma,  (int)Math.Round(currentStats.netLag.avgVal), currentStats.netLag.sigma);
         }
      //public PeerClockSyncInfo(string pid, long cnt, long since, long offset, double offsetSigma, long lag, double lagSigma)
 
@@ -139,30 +165,25 @@ namespace P2pNet
 
             // TODO: consider using T3 as timestamp for the latest sample
 
-            TheStats theStats = currentStats;
+            List<TheStats> statsSets = new List<TheStats>{currentStats}; // TODO: create this in ctor
+            statsSets.AddRange(testStatsList);
 
-            // Traditional (per-sample) EWMA - kinda assumes equal sample times.
-            // 2 sigma lag outlier rejection
-
-            const long samplesN = 8; // samples to average over
-            if ( Math.Abs((offset - theStats.avgOffsetMs)) > 2*theStats.offsetSigma && theStats.sampleCount > 6)
+            foreach ( TheStats theStats in statsSets )
             {
-                logger.Warn($"!!! CompleteSync() - Offset {offset} is outside tolerance: ({theStats.avgOffsetMs-2*theStats.offsetSigma}, {theStats.avgOffsetMs+2*theStats.offsetSigma}) Ignoring sample");
-            } else if ((lag - theStats.avgLagMs) > 2*theStats.lagSigma  && theStats.sampleCount > 8) {
-                logger.Warn($"!!! CompleteSync() - Lag {lag} is outside tolerance:  (0, {theStats.avgLagMs+2*theStats.lagSigma}) Ignoring sample");
-            } else {
-                UpdateStats( theStats, TraditionalEwma, offset, lag, samplesN );
+
+                bool sampleAccepted = true;
+                if ( Math.Abs((offset - theStats.clockOffset.avgVal)) > 2*theStats.clockOffset.sigma && theStats.sampleCount > 6)
+                {
+                    sampleAccepted = false;
+                    logger.Warn($"!!! CompleteSync() - Offset {offset} is outside tolerance: ({theStats.clockOffset.avgVal-2*theStats.clockOffset.sigma}, {theStats.clockOffset.avgVal+2*theStats.clockOffset.sigma}) Ignoring sample");
+                } else if ((lag - theStats.netLag.avgVal) > 2*theStats.netLag.sigma  && theStats.sampleCount > 6) {
+                    sampleAccepted = false;
+                    logger.Warn($"!!! CompleteSync() - Lag {lag} is outside tolerance:  (0, {theStats.netLag.avgVal+2*theStats.netLag.sigma}) Ignoring sample");
+                }
+
+                UpdateStats( theStats, offset, lag, sampleAccepted); // always run the update since variance is ALWAYS calculated
             }
 
-            theStats = testStats;
-            if ( Math.Abs((offset - theStats.avgOffsetMs)) > 2*theStats.offsetSigma && theStats.sampleCount > 6)
-            {
-                logger.Warn($"!!! CompleteSync() - Test offset {offset} is outside tolerance: ({theStats.avgOffsetMs-2*theStats.offsetSigma}, {theStats.avgOffsetMs+2*theStats.offsetSigma}) Ignoring sample");
-            } else if ((lag - theStats.avgLagMs) > 2*theStats.lagSigma  && theStats.sampleCount > 8) {
-                logger.Warn($"!!! CompleteSync() - Test Lag {lag} is outside tolerance:  (0, {theStats.avgLagMs+2*theStats.lagSigma}) Ignoring sample");
-            } else {
-               UpdateStats(theStats, JustMean, offset, lag );
-            }
 
             //  theStats = testStats;
             /// Traditional (per-sample) EWMA - kinda assumes equal sample times.
@@ -180,51 +201,113 @@ namespace P2pNet
             //UpdateStats(  testStats, TerribleStupidEwma, 0, lag, theta ); // no param
 
             logger.Verbose($"*** Stats: Peer: {SID(p2pId)} CurOffset: {offset}, CurLag: {lag}");
-            currentStats.LogStats(logger, "Current");
-            testStats.LogStats(logger,    "   Test");
+            currentStats.LogStats(logger, "Current:");
+            foreach (TheStats ts in testStatsList)
+                ts.LogStats(logger,    "   Test:");
         }
 
-        protected static void UpdateStats(TheStats statsInst, Func<long,double,double,long,object,(double,double)> avgFunc, int newOffset,  int newLag, object avgFuncParams = null)
+        protected static void SavedUpdateStats(TheStats statsInst, int newOffset,  int newLag, bool sampleAccepted)
         {
             // Stash current data
             statsInst.currentLag = newLag;
             statsInst.currentOffsetMs = newOffset;
             statsInst.timeStampMs = P2pNetDateTime.NowMs;
 
-            // sys clock offset
-            (statsInst.avgOffsetMs, statsInst.offsetAggrVariance) =
-                avgFunc(newOffset, statsInst.avgOffsetMs, statsInst.offsetAggrVariance, statsInst.sampleCount, avgFuncParams);
+            TrackedValue tVal;
+            double maybeNewAvg;
 
-            // packet lag
-            (statsInst.avgLagMs, statsInst.lagAggrVariance) =
-                avgFunc(newLag, statsInst.avgLagMs, statsInst.lagAggrVariance, statsInst.sampleCount, avgFuncParams);
+            // clock offset
+            tVal =  statsInst.clockOffset;
+            (maybeNewAvg, tVal.varianceAccum) =
+                statsInst.AvgFunc(newOffset, tVal.avgVal, tVal.varianceAccum, statsInst.sampleCount, statsInst.AvgFuncParams);
 
-            // Should we check to enqure  aggrVarinace > 0?
-            statsInst.offsetSigma = (statsInst.sampleCount > 0) ? Math.Sqrt(statsInst.offsetAggrVariance / statsInst.sampleCount) : -1;
+            if (sampleAccepted)
+                tVal.avgVal = maybeNewAvg;
 
-            statsInst.lagSigma = (statsInst.sampleCount > 0) ? Math.Sqrt(statsInst.lagAggrVariance / statsInst.sampleCount) : -1;
+            switch (statsInst.VarianceMethod )
+            {
+                case TheStats.StatsVarianceMethod.Welford:
+                    tVal.sigma =  ((statsInst.varianceSampleCount > 0) ? Math.Sqrt(tVal.varianceAccum / statsInst.varianceSampleCount) : -1);
+                    break;
+                case TheStats.StatsVarianceMethod.EWMA:
+                    tVal.sigma =  ((statsInst.varianceSampleCount > 0) ? Math.Sqrt(tVal.varianceAccum) : -1); // Variance is a runing val
+                    break;
+            }
 
-            statsInst.sampleCount++;
+            // Net lag
+            tVal =  statsInst.netLag;
+            (maybeNewAvg, tVal.varianceAccum) =
+                statsInst.AvgFunc(newLag, tVal.avgVal, tVal.varianceAccum, statsInst.sampleCount, statsInst.AvgFuncParams);
+
+            if (sampleAccepted)
+                tVal.avgVal = maybeNewAvg;
+
+            switch (statsInst.VarianceMethod )
+            {
+                case TheStats.StatsVarianceMethod.Welford:
+                    tVal.sigma =  ((statsInst.varianceSampleCount > 0) ? Math.Sqrt(tVal.varianceAccum / statsInst.varianceSampleCount) : -1);
+                    break;
+                case TheStats.StatsVarianceMethod.EWMA:
+                    tVal.sigma =  ((statsInst.varianceSampleCount > 0) ? Math.Sqrt(tVal.varianceAccum) : -1); // Variance is a runing val
+                    break;
+            }
+
+            statsInst.varianceSampleCount++; // variance is always calculated. If only accepted samples are included, real changes in value will always get rejectde
+
+            if (sampleAccepted)
+                statsInst.sampleCount++;  // if sample not accepted (value not used) then don't increment sampleCount
+        }
+
+        protected static void UpdateStats(TheStats statsInst, int newOffset,  int newLag, bool sampleAccepted)
+        {
+            // Stash current data
+            statsInst.currentLag = newLag;
+            statsInst.currentOffsetMs = newOffset;
+            statsInst.timeStampMs = P2pNetDateTime.NowMs;
+
+            (TrackedValue, long)[] trackedValues = { (statsInst.clockOffset, newOffset), (statsInst.netLag, newLag) };
+            foreach ( (TrackedValue tVal, long newVal) in trackedValues )
+            {
+                double maybeNewAvg;
+
+                (maybeNewAvg, tVal.varianceAccum) =
+                    statsInst.AvgFunc(newVal, tVal.avgVal, tVal.varianceAccum, statsInst.sampleCount, statsInst.AvgFuncParams);
+
+                if (sampleAccepted)
+                    tVal.avgVal = maybeNewAvg;
+
+                switch (statsInst.VarianceMethod )
+                {
+                    case TheStats.StatsVarianceMethod.Welford:
+                        tVal.sigma =  ((statsInst.varianceSampleCount > 0) ? Math.Sqrt(tVal.varianceAccum / statsInst.varianceSampleCount) : -1);
+                        break;
+                    case TheStats.StatsVarianceMethod.EWMA:
+                        tVal.sigma =  ((statsInst.varianceSampleCount > 0) ? Math.Sqrt(tVal.varianceAccum) : -1); // Variance is a runing val
+                        break;
+                }
+            }
+
+            statsInst.varianceSampleCount++; // variance is always calculated. If only accepted samples are included, real changes in value will always get rejectde
+
+            if (sampleAccepted)
+                statsInst.sampleCount++;  // if sample not accepted (value not used) then don't increment sampleCount
         }
 
 
         //  avg w/prev avg - lame-ass EWMA
-        public static (double, double) TerribleStupidEwma(long newVal, double oldAvg,  double oldAggrVariance, long sampleCnt, object _noParam)
-        {
-            return (sampleCnt == 0)
-                ? (newVal,  -1)
-                : ( (newVal + oldAvg) / 2, -1);
-        }
+        // public static (double, double) TerribleStupidEwma(long newVal, double oldAvg,  double oldAggrVariance, long sampleCnt, object _noParam)
+        // {
+        //     return (sampleCnt == 0)
+        //         ? (newVal,  -1)
+        //         : ( (newVal + oldAvg) / 2, -1);
+        // }
 
-
-
-        // A simple mean value for both offset and lag.
-        // This might actually be the most defensible method since in reality all of these clocks are running
-        // at the same rate so the actual offset is a constant.
-        public static (double, double) JustMean(long newVal, double curAvg,  double curAggrVariance, long curSampleCnt, object _noParam)
+        // A simple mean of ALL values for both offset and lag.
+        // This might be a pretty defensible method since in reality all of these clocks are running
+        // at the same rate so the actual offset is really a constant.
+        public static (double, double) JustAllMean(long newVal, double curAvg,  double curAggrVariance, long curSampleCnt, object _noParam)
         {
             // sample count is incremented when this data is applied by the calling func
-
             double delta = newVal - curAvg; // avg before newVal is applied
             double avg = curAvg  + delta /(curSampleCnt+1);
             double aggrVariance = curAggrVariance + delta*delta;
@@ -233,12 +316,12 @@ namespace P2pNet
 
 
         // normal, fixed-increment EWMA
-        public static (double,double) TraditionalEwma(long newVal, double curAvg, double curAggrVariance, long curSampleCnt, object avgOverSampleCountObj)
+        public static (double,double) TraditionalEwma(long newVal, double curAvg, double curRunningVariance, long curSampleCnt, object avgParams)
         {
             if (curSampleCnt == 0)
                 return (newVal, 0);
 
-            long avgOverSampleCount = (long)avgOverSampleCountObj; // number of samples to avg over
+            int avgOverSampleCount = (int)avgParams;
 
             //  alpha is weignt of new sample
             double alpha = (curSampleCnt >= (avgOverSampleCount/2))
@@ -251,49 +334,24 @@ namespace P2pNet
             double delta = newVal - curAvg;
             double avg = curAvg + alpha * delta;
 
-            double curVariance = curAggrVariance / curSampleCnt;
-            double newVariance = (1.0 - alpha) * (curVariance + alpha * delta * delta);
-            double aggrVariance = newVariance * (curSampleCnt+1); // This is super-fugly... does it even work?
+            double runningVariance = (1.0 - alpha) * (curRunningVariance + alpha * delta * delta);
 
-            return (avg, aggrVariance);
+            return (avg, runningVariance);
         }
 
 // - -------- Below here still needs updating to using aggRVariance
 
-        public static (double,double) TraditionalEwma2(long newVal, double curAvg, double curVariance, long sampleCnt, object avgOverSampleCountObj)
+
+         public static (double,double) IrregularPeriodlEwma(long newVal, double curAvg, double curRunningVariance, long curSampleCnt, object avgParams)
         {
-
-            if (sampleCnt == 0)
+            if (curSampleCnt == 0)
                 return (newVal, 0);
-
-            long avgOverSampleCount = (long)avgOverSampleCountObj; // number of samples to avg over
-
-            //  alpha is weignt of new sample
-            double alpha = (sampleCnt >= (avgOverSampleCount/2))
-                        ? 2.0 / ((double)avgOverSampleCount - 1)   // use alpha calc
-                        : 1.0 / (sampleCnt+1);  // early on just average
-
-            UniLogger.GetLogger("P2pNetSync").Debug($"*** Stats: alpha: {alpha}");
-
-            double delta = newVal - curAvg;
-            double avg = curAvg + (alpha * delta);
-            double variance = (1.0 - alpha) * (curVariance + alpha * delta * delta);
-
-
-            return (avg, variance);
-        }
-
-         public static (double,double) IrregularPeriodlEwma(long newVal, double curAvg, double curVariance, long sampleCnt, object avgParams)
-        {
-            if (sampleCnt == 0)
-                return (newVal, 0);
-
 
             (int dT, int avgOverPeriodMs) = ( ValueTuple<int,int>)avgParams;
 
             //  alpha is weignt of new sample
-            double alpha = (sampleCnt < 4)
-                        ?  1.0 / (sampleCnt+1)  //  just average first 4 ( alpha = 1 (sampleNum == 0), .5, .333, .25)
+            double alpha = (curSampleCnt < 4)
+                        ?  1.0 / (curSampleCnt+1)  //  just average first 4 ( alpha = 1 (sampleNum == 0), .5, .333, .25)
                         :  1.0 - Math.Exp( - (double)dT / avgOverPeriodMs); // use alpha calc
 
             UniLogger.GetLogger("P2pNetSync").Debug($"*** Stats: avgOverPeriodMs: {avgOverPeriodMs}");
@@ -304,7 +362,7 @@ namespace P2pNet
             double delta = newVal - curAvg;
             double avg = curAvg + alpha * delta;
 
-            double variance = (1.0 - alpha) * (curVariance + alpha * delta * delta);
+            double variance = (1.0 - alpha) * (curRunningVariance + alpha * delta * delta);
 
             return (avg, variance);
         }
