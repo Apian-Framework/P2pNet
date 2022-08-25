@@ -524,13 +524,13 @@ namespace P2pNet
              P2pNetPeer peer = channelPeers.GetPeer(from);
             if (peer != null)
             {
+                peer.ReportInterimSyncProgress();
                 SyncPayload payload = JsonConvert.DeserializeObject<SyncPayload>(msg.payload);
                 if (payload.t0 == 0)
                 {
                     // This was the first hop from the originator
                     payload.t0 = msg.sentTime;
                     payload.t1 = msg.rcptTime;
-                    peer.ReportInterimSyncProgress();
                     DoSend(from, P2pNetMessage.MsgSync, JsonConvert.SerializeObject(payload)); // send reply
                 } else if (payload.t2 == 0) {
                     // We are the originator getting our sync back
