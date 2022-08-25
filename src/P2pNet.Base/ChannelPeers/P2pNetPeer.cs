@@ -163,7 +163,7 @@ namespace P2pNet
             // not so sure about this value.
             avgSyncPeriodMs = (avgSyncPeriodMs > 0) ? ((avgSyncPeriodMs + currentSyncPeriodMs) / 2) : currentSyncPeriodMs; // running alpha=.5 ewma
 
-           logger.Verbose($"*** Stats: CurSynPeriod: {currentSyncPeriodMs} AvgSyncPeriod: {avgSyncPeriodMs}");
+           logger.Verbose($"*** Stats: CurSyncPeriod: {currentSyncPeriodMs} AvgSyncPeriod: {avgSyncPeriodMs}");
 
             jitterForNextTimeout = new Random().Next((int)currentSyncPeriodMs/4);
             lastSyncCompletionMs = P2pNetDateTime.NowMs;
