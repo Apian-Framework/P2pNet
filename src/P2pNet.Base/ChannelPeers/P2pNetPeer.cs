@@ -105,7 +105,8 @@ namespace P2pNet
         protected TheStats currentStats;
         protected IList<TheStats> testStatsList; // using this during development to compare
 
-        protected double avgSyncPeriodMs = 15000; // hard-coded start val (note there can be different channels w/different periods)
+        protected int avgSyncPeriodMs = -1; // gets set to caller-requested period the first time through
+        protected int currentSyncPeriodMs = -1; //
 
         protected int initialSyncTimeoutMs = 200; // for 1st 4 syncTimeoutMs
 
@@ -123,6 +124,7 @@ namespace P2pNet
             currentStats = new TheStats("TraditionalEwma(8)", TraditionalEwma, 8, TheStats.StatsVarianceMethod.EWMA); // Param is N in "N-sample moving avg"
             testStatsList = new List<TheStats>();
             testStatsList.Add( new TheStats("JustAllMean", JustAllMean, null,  TheStats.StatsVarianceMethod.Welford ) );
+            testStatsList.Add(new TheStats("IrregularPeriodlEwma", IrregularPeriodlEwma, null, TheStats.StatsVarianceMethod.EWMA) );
         }
 
         public  int NetworkLagMs => (int)Math.Round(currentStats.netLag.avgVal);// round trip time / 2
@@ -155,12 +157,12 @@ namespace P2pNet
             int offset = (int)((t1 - t0) + (t2-t3)) / 2; // offset
             int lag = (int)((t3 - t0) - (t2-t1)) / 2;
 
-            long msSincePreviousCompletion = lastSyncCompletionMs == 0 ? 0 : (P2pNetDateTime.NowMs - lastSyncCompletionMs);
+            currentSyncPeriodMs = lastSyncCompletionMs == 0 ? 0 : (int)(P2pNetDateTime.NowMs - lastSyncCompletionMs);
 
             // not so sure about this value.
-            avgSyncPeriodMs = ((avgSyncPeriodMs + msSincePreviousCompletion) * .5f); // running alpha=.5 ewma
+            avgSyncPeriodMs = (avgSyncPeriodMs > 0) ? ((avgSyncPeriodMs + currentSyncPeriodMs) / 2) : currentSyncPeriodMs; // running alpha=.5 ewma
 
-            jitterForNextTimeout = new Random().Next((int)msSincePreviousCompletion/4);
+            jitterForNextTimeout = new Random().Next((int)currentSyncPeriodMs/4);
             lastSyncCompletionMs = P2pNetDateTime.NowMs;
 
             // TODO: consider using T3 as timestamp for the latest sample
@@ -206,7 +208,7 @@ namespace P2pNet
                 ts.LogStats(logger,    "   Test:");
         }
 
-        protected static void UpdateStats(TheStats statsInst, int newOffset,  int newLag, bool sampleAccepted)
+        protected void UpdateStats(TheStats statsInst, int newOffset,  int newLag, bool sampleAccepted)
         {
             // Stash current data
             statsInst.currentLag = newLag;
@@ -253,7 +255,7 @@ namespace P2pNet
         // A simple mean of ALL values for both offset and lag.
         // This might be a pretty defensible method since in reality all of these clocks are running
         // at the same rate so the actual offset is really a constant.
-        public static (double, double) JustAllMean(long newVal, double curAvg,  double curAggrVariance, long curSampleCnt, object _noParam)
+        public (double, double) JustAllMean(long newVal, double curAvg,  double curAggrVariance, long curSampleCnt, object _noParam)
         {
             // sample count is incremented when this data is applied by the calling func
             double delta = newVal - curAvg;
@@ -264,7 +266,7 @@ namespace P2pNet
 
 
         // normal, fixed-increment EWMA
-        public static (double,double) TraditionalEwma(long newVal, double curAvg, double curRunningVariance, long curSampleCnt, object avgParams)
+        public (double,double) TraditionalEwma(long newVal, double curAvg, double curRunningVariance, long curSampleCnt, object avgParams)
         {
             if (curSampleCnt == 0)
                 return (newVal, 0);
@@ -273,7 +275,7 @@ namespace P2pNet
 
             //  alpha is weignt of new sample
             double alpha = (curSampleCnt >= (avgOverSampleCount/2))
-                        ? 2.0 / ((double)avgOverSampleCount - 1)   // use alpha calc
+                        ? 2.0 / ((double)avgOverSampleCount - 1)   // this is the nominal alpha calculation
                         : 1.0 / (curSampleCnt+1);  // early on just average
 
             UniLogger.GetLogger("P2pNetSync").Debug($"*** Stats: alpha: {alpha}");
@@ -291,17 +293,22 @@ namespace P2pNet
 // - -------- Below here still needs updating to using aggRVariance
 
 
-         public static (double,double) IrregularPeriodlEwma(long newVal, double curAvg, double curRunningVariance, long curSampleCnt, object avgParams)
+        public (double,double) IrregularPeriodlEwma(long newVal, double curAvg, double curRunningVariance, long curSampleCnt, object _)
         {
+            // https://en.wikipedia.org/wiki/Moving_average#Application_to_measuring_computer_performance
+
             if (curSampleCnt == 0)
                 return (newVal, 0);
 
-            (int dT, int avgOverPeriodMs) = ( ValueTuple<int,int>)avgParams;
+            // dT is time between ths sample and the previous one
+            // avgOverPeriodMs is the time in ms over which the reading is said to be averaged
+            int dT = currentSyncPeriodMs;
+            int avgOverPeriodMs = 3 * avgSyncPeriodMs;
 
             //  alpha is weignt of new sample
             double alpha = (curSampleCnt < 4)
                         ?  1.0 / (curSampleCnt+1)  //  just average first 4 ( alpha = 1 (sampleNum == 0), .5, .333, .25)
-                        :  1.0 - Math.Exp( - (double)dT / avgOverPeriodMs); // use alpha calc
+                        :  1.0 - Math.Exp( - (double)dT / avgOverPeriodMs); // nomical alpha calculation
 
             UniLogger.GetLogger("P2pNetSync").Debug($"*** Stats: avgOverPeriodMs: {avgOverPeriodMs}");
             UniLogger.GetLogger("P2pNetSync").Debug($"*** Stats: alphaT: {alpha}");
@@ -311,7 +318,7 @@ namespace P2pNet
             double delta = newVal - curAvg;
             double avg = curAvg + alpha * delta;
 
-            double variance = (1.0 - alpha) * (curRunningVariance + alpha * delta * delta);
+            double variance =  curSampleCnt > 0 ? (1.0 - alpha) * (curRunningVariance + alpha * delta * delta) : 0; // variance for first value is 0
 
             return (avg, variance);
         }
