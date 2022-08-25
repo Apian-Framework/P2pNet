@@ -206,58 +206,6 @@ namespace P2pNet
                 ts.LogStats(logger,    "   Test:");
         }
 
-        protected static void SavedUpdateStats(TheStats statsInst, int newOffset,  int newLag, bool sampleAccepted)
-        {
-            // Stash current data
-            statsInst.currentLag = newLag;
-            statsInst.currentOffsetMs = newOffset;
-            statsInst.timeStampMs = P2pNetDateTime.NowMs;
-
-            TrackedValue tVal;
-            double maybeNewAvg;
-
-            // clock offset
-            tVal =  statsInst.clockOffset;
-            (maybeNewAvg, tVal.varianceAccum) =
-                statsInst.AvgFunc(newOffset, tVal.avgVal, tVal.varianceAccum, statsInst.sampleCount, statsInst.AvgFuncParams);
-
-            if (sampleAccepted)
-                tVal.avgVal = maybeNewAvg;
-
-            switch (statsInst.VarianceMethod )
-            {
-                case TheStats.StatsVarianceMethod.Welford:
-                    tVal.sigma =  ((statsInst.varianceSampleCount > 0) ? Math.Sqrt(tVal.varianceAccum / statsInst.varianceSampleCount) : -1);
-                    break;
-                case TheStats.StatsVarianceMethod.EWMA:
-                    tVal.sigma =  ((statsInst.varianceSampleCount > 0) ? Math.Sqrt(tVal.varianceAccum) : -1); // Variance is a runing val
-                    break;
-            }
-
-            // Net lag
-            tVal =  statsInst.netLag;
-            (maybeNewAvg, tVal.varianceAccum) =
-                statsInst.AvgFunc(newLag, tVal.avgVal, tVal.varianceAccum, statsInst.sampleCount, statsInst.AvgFuncParams);
-
-            if (sampleAccepted)
-                tVal.avgVal = maybeNewAvg;
-
-            switch (statsInst.VarianceMethod )
-            {
-                case TheStats.StatsVarianceMethod.Welford:
-                    tVal.sigma =  ((statsInst.varianceSampleCount > 0) ? Math.Sqrt(tVal.varianceAccum / statsInst.varianceSampleCount) : -1);
-                    break;
-                case TheStats.StatsVarianceMethod.EWMA:
-                    tVal.sigma =  ((statsInst.varianceSampleCount > 0) ? Math.Sqrt(tVal.varianceAccum) : -1); // Variance is a runing val
-                    break;
-            }
-
-            statsInst.varianceSampleCount++; // variance is always calculated. If only accepted samples are included, real changes in value will always get rejectde
-
-            if (sampleAccepted)
-                statsInst.sampleCount++;  // if sample not accepted (value not used) then don't increment sampleCount
-        }
-
         protected static void UpdateStats(TheStats statsInst, int newOffset,  int newLag, bool sampleAccepted)
         {
             // Stash current data
@@ -279,10 +227,10 @@ namespace P2pNet
                 switch (statsInst.VarianceMethod )
                 {
                     case TheStats.StatsVarianceMethod.Welford:
-                        tVal.sigma =  ((statsInst.varianceSampleCount > 0) ? Math.Sqrt(tVal.varianceAccum / statsInst.varianceSampleCount) : -1);
+                        tVal.sigma =  (statsInst.varianceSampleCount > 0) ? Math.Sqrt(tVal.varianceAccum / statsInst.varianceSampleCount) : 0;
                         break;
                     case TheStats.StatsVarianceMethod.EWMA:
-                        tVal.sigma =  ((statsInst.varianceSampleCount > 0) ? Math.Sqrt(tVal.varianceAccum) : -1); // Variance is a runing val
+                        tVal.sigma =  (statsInst.varianceSampleCount > 0) ? Math.Sqrt(tVal.varianceAccum) : 0; // Variance is a runing val
                         break;
                 }
             }
