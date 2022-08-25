@@ -121,7 +121,7 @@ namespace P2pNet
         {
             p2pId = _p2pId;
             logger = UniLogger.GetLogger("P2pNetSync");
-            currentStats = new TheStats("IrregularPeriodlEwma", IrregularPeriodlEwma, 3, TheStats.StatsVarianceMethod.EWMA); // param is N where "sampled over" time is N*avgSamplePerod
+            currentStats = new TheStats("IrregularPeriodEwma", IrregularPeriodEwma, 3, TheStats.StatsVarianceMethod.EWMA); // param is N where "sampled over" time is N*avgSamplePerod
 
             testStatsList = new List<TheStats>();
             testStatsList.Add( new TheStats("TraditionalEwma(8)", TraditionalEwma, 8, TheStats.StatsVarianceMethod.EWMA) );
@@ -160,9 +160,10 @@ namespace P2pNet
             int lag = (int)((t3 - t0) - (t2-t1)) / 2;
 
             currentSyncPeriodMs = lastSyncCompletionMs == 0 ? 0 : (int)(P2pNetDateTime.NowMs - lastSyncCompletionMs);
-
             // not so sure about this value.
             avgSyncPeriodMs = (avgSyncPeriodMs > 0) ? ((avgSyncPeriodMs + currentSyncPeriodMs) / 2) : currentSyncPeriodMs; // running alpha=.5 ewma
+
+           logger.Verbose($"*** Stats: CurSynPeriod: {currentSyncPeriodMs} AvgSyncPeriod: {avgSyncPeriodMs}");
 
             jitterForNextTimeout = new Random().Next((int)currentSyncPeriodMs/4);
             lastSyncCompletionMs = P2pNetDateTime.NowMs;
@@ -295,7 +296,7 @@ namespace P2pNet
 // - -------- Below here still needs updating to using aggRVariance
 
 
-        public (double,double) IrregularPeriodlEwma(long newVal, double curAvg, double curRunningVariance, long curSampleCnt, object multiplierObj)
+        public (double,double) IrregularPeriodEwma(long newVal, double curAvg, double curRunningVariance, long curSampleCnt, object multiplierObj)
         {
             // https://en.wikipedia.org/wiki/Moving_average#Application_to_measuring_computer_performance
 
