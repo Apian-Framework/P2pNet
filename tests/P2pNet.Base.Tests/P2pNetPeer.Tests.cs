@@ -21,7 +21,7 @@ namespace P2pNetBaseTests
 
             public long NetworkLagMs => clockSync.NetworkLagMs;
             public long ClockOffsetMs => clockSync.ClockOffsetMs;
-            public long LatestSyncActivityMs => clockSync.lastActivityMs;
+            public long LatestSyncActivityMs => clockSync.lastSyncActivityMs;
 
         }
 
@@ -138,8 +138,9 @@ namespace P2pNetBaseTests
             float lagVar, offsetVar;
 
             // This is not at all how it works anymore. SHouldn't be doing these
-            (reportedLag, lagVar) =  PeerClockSyncCalc.TraditionalEwma(computedLag, prevPeerLag, 0, 1, 8);
-            (reportedOffset, offsetVar) = PeerClockSyncCalc.TraditionalEwma(computedTheta, prevPeerOffset, 0, 1, 8);
+
+            //(reportedLag, lagVar) =  PeerClockSyncCalc.TraditionalEwma(computedLag, prevPeerLag, 0, 1, 8);
+            //(reportedOffset, offsetVar) = PeerClockSyncCalc.TraditionalEwma(computedTheta, prevPeerOffset, 0, 1, 8);
 
             // FIXME: really need to check these once stats get settled - do the above some better way
            // Assert.That(peer.ClockOffsetMs, Is.EqualTo(reportedOffset));

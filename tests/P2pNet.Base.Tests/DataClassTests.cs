@@ -21,7 +21,7 @@ namespace P2pNetBaseTests
         {
             // public PeerClockSyncInfo(string pid, long since, long offset, long lag)
             const string pid = "pid";
-            const long count = 12,
+            const int count = 12,
                 since = 123456,
                 offfset = 3245,
                 lag = 250;
