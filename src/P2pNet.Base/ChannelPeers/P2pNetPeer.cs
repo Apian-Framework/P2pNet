@@ -256,7 +256,7 @@ namespace P2pNet
         public static (double, double) JustAllMean(long newVal, double curAvg,  double curAggrVariance, long curSampleCnt, object _noParam)
         {
             // sample count is incremented when this data is applied by the calling func
-            double delta = newVal - curAvg; // avg before newVal is applied
+            double delta = curSampleCnt > 0 ? newVal - curAvg : 0; // delta for first value is 0
             double avg = curAvg  + delta /(curSampleCnt+1);
             double aggrVariance = curAggrVariance + delta*delta;
             return (avg, aggrVariance);
@@ -279,7 +279,8 @@ namespace P2pNet
             UniLogger.GetLogger("P2pNetSync").Debug($"*** Stats: alpha: {alpha}");
 
             // see: https://en.wikipedia.org/wiki/Moving_average#Exponentially_weighted_moving_variance_and_standard_deviation
-            double delta = newVal - curAvg;
+
+            double delta = curSampleCnt > 0 ? newVal - curAvg : 0; // delta for first value is 0
             double avg = curAvg + alpha * delta;
 
             double runningVariance = (1.0 - alpha) * (curRunningVariance + alpha * delta * delta);
