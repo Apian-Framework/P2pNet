@@ -227,10 +227,10 @@ namespace P2pNet
             switch (statsInst.VarianceMethod )
             {
                 case TheStats.StatsVarianceMethod.Welford:
-                    tVal.sigma =  ((statsInst.varianceSampleCount > 0) ? Math.Sqrt(tVal.varianceAccum / statsInst.varianceSampleCount) : -1);
+                    tVal.sigma = (statsInst.varianceSampleCount > 0) ? Math.Sqrt(tVal.varianceAccum / statsInst.varianceSampleCount) : 0; // zero variance for 1 sample
                     break;
                 case TheStats.StatsVarianceMethod.EWMA:
-                    tVal.sigma =  ((statsInst.varianceSampleCount > 0) ? Math.Sqrt(tVal.varianceAccum) : -1); // Variance is a runing val
+                    tVal.sigma =  (statsInst.varianceSampleCount > 0) ? Math.Sqrt(tVal.varianceAccum) : 0; // Variance is a runing val
                     break;
             }
 
