@@ -256,9 +256,9 @@ namespace P2pNet
         public static (double, double) JustAllMean(long newVal, double curAvg,  double curAggrVariance, long curSampleCnt, object _noParam)
         {
             // sample count is incremented when this data is applied by the calling func
-            double delta = curSampleCnt > 0 ? newVal - curAvg : 0; // delta for first value is 0
+            double delta = newVal - curAvg;
             double avg = curAvg  + delta /(curSampleCnt+1);
-            double aggrVariance = curAggrVariance + delta*delta;
+            double aggrVariance = curSampleCnt > 0 ? curAggrVariance + delta*delta : 0;  // variance for first value is 0
             return (avg, aggrVariance);
         }
 
@@ -280,10 +280,10 @@ namespace P2pNet
 
             // see: https://en.wikipedia.org/wiki/Moving_average#Exponentially_weighted_moving_variance_and_standard_deviation
 
-            double delta = curSampleCnt > 0 ? newVal - curAvg : 0; // delta for first value is 0
+            double delta = newVal - curAvg;
             double avg = curAvg + alpha * delta;
 
-            double runningVariance = (1.0 - alpha) * (curRunningVariance + alpha * delta * delta);
+            double runningVariance =  curSampleCnt > 0 ? (1.0 - alpha) * (curRunningVariance + alpha * delta * delta) : 0; // variance for first value is 0
 
             return (avg, runningVariance);
         }
