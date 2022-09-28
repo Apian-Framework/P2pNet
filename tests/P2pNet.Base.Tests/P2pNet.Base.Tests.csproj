@@ -1,13 +1,15 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <DebugType>portable</DebugType>
     <IsPackable>false</IsPackable>
+    <AssemblyVersion>1.0.4.0</AssemblyVersion>
+    <FileVersion>1.0.4.0</FileVersion>
+    <InformationalVersion>1.0.4-ci.262+Branch.master.Sha.d21ed320e83c118f794c39119182f0a18db431cf</InformationalVersion>
+    <Version>1.0.4-ci0262</Version>
   </PropertyGroup>
-
   <ItemGroup>
-    <PackageReference Include="coverlet.msbuild"  Version="2.9.0">
+    <PackageReference Include="coverlet.msbuild" Version="2.9.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
@@ -17,11 +19,9 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.9.0" />
     <PackageReference Include="ReportGenerator" Version="4.8.1" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\..\src\P2pNet.Base\P2pNet.Base.csproj" />
   </ItemGroup>
-
   <PropertyGroup>
     <!-- These are all for 'dotnet test' in order to match the ReportGenerator stuff below -->
     <CollectCoverage>true</CollectCoverage>
@@ -29,10 +29,8 @@
     <CoverletOutputFormat>cobertura</CoverletOutputFormat>
     <Include>[P2pNet.Base]*</Include>
   </PropertyGroup>
-
   <Target Name="GenerateHtmlCoverageReport" AfterTargets="GenerateCoverageResultAfterTest" Condition="Exists('./coverage/coverage.cobertura.xml')">
     <Message Text="Generating coverage report from @(CoverletReport)" />
     <ReportGenerator ReportFiles="./coverage/coverage.cobertura.xml" TargetDirectory="./coverage/reports" ReportTypes="html;badges" />
   </Target>
-
 </Project>
