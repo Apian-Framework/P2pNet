@@ -82,7 +82,7 @@ namespace P2pNetBaseTests
             Assert.That(chp.HelloTimedOut, Is.False);
             Assert.That(chp.HasTimedOut, Is.False);
             Assert.That(chp.NeedsPing, Is.True);
-            Assert.That(chp.ClockNeedsSync, Is.True);
+            Assert.That(chp.ClockNeedsSync, Is.False); // No longer starts as "needs sync"
 
             Assert.That(chp.ValidateMsgId(0), Is.False);
             Assert.That(chp.ValidateMsgId(1), Is.True);
