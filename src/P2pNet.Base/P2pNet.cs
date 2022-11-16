@@ -516,6 +516,19 @@ namespace P2pNet
                 peer.ReportInterimSyncProgress();
                 // payload "sent time" gets set by receiver.
                 DoSend(dest, P2pNetMessage.MsgSync, JsonConvert.SerializeObject(payload));
+                logger.Info($"Initiating sync with peer {SID(dest)}");
+            }
+        }
+
+        private void _completeSyncForPeer( P2pNetPeer peer, long t0, long t1, long t2, long t3)
+        {
+            peer.CompleteClockSync(t0, t1, t2, t3);
+            PeerClockSyncInfo csi = peer.ClockSyncInfo;
+            logger.Info($"  _completeSyncForPeer(): {SID(peer.p2pId)} Offset: {csi.sysClockOffsetMs}, Lag: {csi.networkLagMs}");
+            foreach (P2pNetChannel ch in channelPeers.ChannelsForPeer(peer.p2pId))
+            {
+                if (ch.IsSyncingClocks)
+                    client.OnPeerSync(ch.Id,peer.p2pId, csi);
             }
         }
 
@@ -528,36 +541,42 @@ namespace P2pNet
                 SyncPayload payload = JsonConvert.DeserializeObject<SyncPayload>(msg.payload);
                 if (payload.t0 == 0)
                 {
+                    logger.Info($"OnSyncMsg() request from {SID(from)}");
                     // This was the first hop from the originator
                     payload.t0 = msg.sentTime;
                     payload.t1 = msg.rcptTime;
                     DoSend(from, P2pNetMessage.MsgSync, JsonConvert.SerializeObject(payload)); // send reply
                 } else if (payload.t2 == 0) {
                     // We are the originator getting our sync back
+                    logger.Info($"OnSyncMsg reply (our init) from {SID(from)}");
                     payload.t2 = msg.sentTime;
                     payload.t3 = msg.rcptTime;
                     DoSend(from, P2pNetMessage.MsgSync, JsonConvert.SerializeObject(payload)); // send reply
-                    peer.CompleteClockSync(payload.t0, payload.t1, payload.t2, payload.t3);
-                    PeerClockSyncInfo csi = peer.ClockSyncInfo;
-                    logger.Info($"Synced (org) {SID(from)} Offset: {csi.sysClockOffsetMs}, Lag: {csi.networkLagMs}");
-                    foreach (P2pNetChannel ch in channelPeers.ChannelsForPeer(peer.p2pId))
-                    {
-                        if (ch.IsSyncingClocks)
-                            client.OnPeerSync(ch.Id,peer.p2pId, csi);
-                            // TODO: OnPeerSYnc should just take a PeerClockSYncInfo?
-                    }
+                    _completeSyncForPeer(peer, payload.t0, payload.t1, payload.t2, payload.t3 );
+
+                    //peer.CompleteClockSync(payload.t0, payload.t1, payload.t2, payload.t3);
+                    // PeerClockSyncInfo csi = peer.ClockSyncInfo;
+                    // foreach (P2pNetChannel ch in channelPeers.ChannelsForPeer(peer.p2pId))
+                    // {
+                    //     if (ch.IsSyncingClocks)
+                    //         client.OnPeerSync(ch.Id,peer.p2pId, csi);
+                    //         // TODO: OnPeerSYnc should just take a PeerClockSYncInfo?
+                    // }
 
                } else {
                     // we're the recipient and it's done
-                    peer.CompleteClockSync(payload.t2, payload.t3, msg.sentTime, msg.rcptTime);
-                    PeerClockSyncInfo csi = peer.ClockSyncInfo;
-                    logger.Info($"Synced (rcp) {SID(from)} Offset: {csi.sysClockOffsetMs}, Lag: {csi.networkLagMs}");
-                    // TODO: fix the following copypasta
-                    foreach (P2pNetChannel ch in channelPeers.ChannelsForPeer(peer.p2pId))
-                    {
-                        if (ch.IsSyncingClocks)
-                            client.OnPeerSync(ch.Id,peer.p2pId, csi);
-                    }
+                    logger.Info($"Sync reply (remote init) from {SID(from)}");
+                    _completeSyncForPeer(peer,payload.t2, payload.t3, msg.sentTime, msg.rcptTime );
+
+                    // peer.CompleteClockSync(payload.t2, payload.t3, msg.sentTime, msg.rcptTime);
+                    // PeerClockSyncInfo csi = peer.ClockSyncInfo;
+                    // //logger.Info($"  Offset: {csi.sysClockOffsetMs}, Lag: {csi.networkLagMs}");
+                    // // TODO: fix the following copypasta
+                    // foreach (P2pNetChannel ch in channelPeers.ChannelsForPeer(peer.p2pId))
+                    // {
+                    //     if (ch.IsSyncingClocks)
+                    //         client.OnPeerSync(ch.Id,peer.p2pId, csi);
+                    // }
                 }
             } else {
                logger.Warn($"Got sync from unknown peer: {SID(from)}. Ignoring.");
