@@ -124,9 +124,12 @@ namespace P2pNet
             currentStats = new TheStats("IrregularPeriodEwma", IrregularPeriodEwma, 3, TheStats.StatsVarianceMethod.EWMA); // param is N where "sampled over" time is N*avgSamplePerod
 
             testStatsList = new List<TheStats>();
-            testStatsList.Add( new TheStats("TraditionalEwma(8)", TraditionalEwma, 8, TheStats.StatsVarianceMethod.EWMA) );
+            //testStatsList.Add( new TheStats("TraditionalEwma(8)", TraditionalEwma, 8, TheStats.StatsVarianceMethod.EWMA) );
             // testStatsList.Add(new TheStats("IrregularPeriodlEwma", IrregularPeriodlEwma, null, TheStats.StatsVarianceMethod.EWMA) ); // Param is N in "N-sample moving avg"
-            testStatsList.Add( new TheStats("JustAllMean", JustAllMean, null,  TheStats.StatsVarianceMethod.Welford ) );
+            //testStatsList.Add( new TheStats("JustAllMean", JustAllMean, null,  TheStats.StatsVarianceMethod.Welford ) );
+
+            lastSyncActivityMs = P2pNetDateTime.NowMs; // delay a little before sending a sync request. Trying to avoid both peers sending.
+            jitterForNextTimeout = new Random().Next((int)initialSyncTimeoutMs); //
         }
 
         public  int NetworkLagMs => (int)Math.Round(currentStats.netLag.avgVal);// round trip time / 2
@@ -140,9 +143,10 @@ namespace P2pNet
             if (currentStats.sampleCount < 4)
                 syncTimeoutMs = initialSyncTimeoutMs;
 
-            return
-                lastSyncActivityMs == 0 // has never synced
-                || P2pNetDateTime.NowMs-lastSyncActivityMs > syncTimeoutMs + jitterForNextTimeout; // or we havent started or participated in a sync in too long.
+            return P2pNetDateTime.NowMs-lastSyncActivityMs > syncTimeoutMs + jitterForNextTimeout;
+
+            //    lastSyncActivityMs == 0 // has never synced
+            //    || P2pNetDateTime.NowMs-lastSyncActivityMs > syncTimeoutMs + jitterForNextTimeout; // or we havent started or participated in a sync in too long.
         }
 
         public PeerClockSyncInfo GetClockSyncInfo(string p2pId)
@@ -175,7 +179,10 @@ namespace P2pNet
 
             foreach ( TheStats theStats in statsSets )
             {
+                // This is iterating over "currentStats" + everything in testStatsList in order to compare.
+                // In production we only need currentstats
 
+                // Get rid of te  hard-coded "6"s below (min sample count for variance checking/rejection)
                 bool sampleAccepted = true;
                 if ( Math.Abs((offset - theStats.clockOffset.avgVal)) > 2*theStats.clockOffset.sigma && theStats.sampleCount > 6)
                 {
@@ -205,7 +212,7 @@ namespace P2pNet
             // Old "avg w/previous avg" (aplha = .5) EWMA
             //UpdateStats(  testStats, TerribleStupidEwma, 0, lag, theta ); // no param
 
-            logger.Verbose($"*** Stats: Peer: {SID(p2pId)} CurOffset: {offset}, CurLag: {lag}");
+            logger.Info($"*** CompleteSync() Stats: Peer: {SID(p2pId)} CurOffset: {offset}, CurLag: {lag}");
             currentStats.LogStats(logger, "Current:");
             foreach (TheStats ts in testStatsList)
                 ts.LogStats(logger,    "   Test:");
