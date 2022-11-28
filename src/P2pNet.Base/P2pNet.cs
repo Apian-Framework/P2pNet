@@ -71,7 +71,7 @@ namespace P2pNet
             ResetJoinStateVars(); // resets
         }
 
-        public List<string> GetPeerIds() => channelPeers.GetPeerIds();
+        public List<string> GetPeerAddrs() => channelPeers.GetPeerIds();
         public string GetPeerData(string channelId, string peerId) => channelPeers.GetChannelPeer(channelId, peerId)?.helloData;
         public PeerClockSyncInfo GetPeerClockSyncData(string peerId) => channelPeers.GetPeerClockSyncData(peerId);
 

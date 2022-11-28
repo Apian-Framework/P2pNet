@@ -11,7 +11,7 @@ namespace P2pNet
         void Join(P2pNetChannelInfo mainChannel, string helloData);
         void AddSubchannel(P2pNetChannelInfo subChannel, string helloData);
         void RemoveSubchannel(string subChannelId);
-        List<string> GetPeerIds();
+        List<string> GetPeerAddrs();
         string GetPeerData(string channelId, string peerId); // Remote peer's HELLO data
         PeerClockSyncInfo GetPeerClockSyncData(string peerId);
         void Leave();
