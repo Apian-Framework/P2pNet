@@ -102,7 +102,7 @@ namespace P2pNet
 
         public void Send(P2pNetMessage msg)
         {
-            logger.Verbose($"MQTT send() (thread: {Environment.CurrentManagedThreadId})");
+            logger.Debug($"MQTT send() (thread: {Environment.CurrentManagedThreadId})");
             // We want this to be fire-n-forget for the caller, so we just do the syncronous
             // message construction and queue up the result.
             string msgJSON = JsonConvert.SerializeObject(msg);
@@ -165,7 +165,7 @@ namespace P2pNet
 
         private void _OnMsgReceived(MqttApplicationMessageReceivedEventArgs args )
         {
-            logger.Verbose($"MQTT _OnMsgReceived() thread: {Environment.CurrentManagedThreadId}");
+            logger.Debug($"MQTT _OnMsgReceived() thread: {Environment.CurrentManagedThreadId}");
             MqttApplicationMessage mqttMsg = args.ApplicationMessage;
             P2pNetMessage msg = JsonConvert.DeserializeObject<P2pNetMessage>(Encoding.UTF8.GetString(mqttMsg.Payload));
             AddReceiptTimestamp(msg);
@@ -173,7 +173,7 @@ namespace P2pNet
             if (joinState.mainSyncCtx != null)
             {
                 joinState.mainSyncCtx.Post( new SendOrPostCallback( (o) => {
-                    logger.Verbose($"XXXXXXXX thread: {Environment.CurrentManagedThreadId}");
+                    logger.Debug($"XXXXXXXX thread: {Environment.CurrentManagedThreadId}");
                     joinState.p2pBase.OnReceivedNetMessage(msg.dstChannel, msg);
                 } ), null);
             } else {
