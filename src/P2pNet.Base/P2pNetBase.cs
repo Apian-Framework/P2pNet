@@ -205,9 +205,10 @@ namespace P2pNet
                 // need to get p2pId for peer with dest Address
                 P2pNetPeer destPeer = channelPeers.GetPeerByAddress(dest);
 
-                string trueDest  =  destPeer != null ? destPeer.p2pAddress : dest;
+                string trueDest  =  destPeer == null ? dest : destPeer.p2pId;
 
                 logger.Debug($"*{SID(LocalAddress)}: Send - sending appMsg to {(channelPeers.IsMainChannel(dest) ? "main channel" : trueDest)}"); // TODO: make better
+
                 DoSend(trueDest, P2pNetMessage.MsgAppl, payload);
             }
         }
