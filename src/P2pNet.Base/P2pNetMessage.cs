@@ -37,9 +37,15 @@ namespace P2pNet
     // TODO: rename these or maybe make P2pNetMessage internal classes?
     public class HelloPayload
     {
+        public string peerAddress; // for clients to use
         public P2pNetChannelInfo channelInfo;
-        public string peerChannelHelloData;
-        public HelloPayload(P2pNetChannelInfo chInfo, string helloData) {channelInfo = chInfo; peerChannelHelloData = helloData;}
+        public string peerChannelHelloData; // this is per-channel *client-specific*
+        public HelloPayload(string peerAddr, P2pNetChannelInfo chInfo, string helloData)
+        {
+            peerAddress = peerAddr;
+            channelInfo = chInfo;
+            peerChannelHelloData = helloData;
+        }
     }
 
     public class SyncPayload

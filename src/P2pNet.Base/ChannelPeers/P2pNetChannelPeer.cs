@@ -29,6 +29,7 @@ namespace P2pNet
         }
 
         public string P2pId { get => Peer.p2pId;}
+        public string P2pAddr { get => Peer.p2pAddress;}
         public string ChannelId { get => Channel.Id;}
 
         public bool HaveTriedToContact() => firstHelloSentTs > 0;

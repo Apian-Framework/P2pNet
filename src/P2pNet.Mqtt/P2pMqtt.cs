@@ -78,7 +78,7 @@ namespace P2pNet
 
             // Create TCP based options using the builder.
             IMqttClientOptions options = new MqttClientOptionsBuilder()
-                .WithClientId(p2pBase.GetId())
+                .WithClientId(p2pBase.LocalId)
                 .WithTcpServer(connectOpts["server"])
                 .WithCredentials(connectOpts["user"], connectOpts["pwd"])
                 .WithCleanSession() // p2pnet should not persist
@@ -142,7 +142,7 @@ namespace P2pNet
         private void _OnClientConnected(MqttClientConnectedEventArgs args)
         {
             logger.Verbose($"MQTT _OnClientConnected() thread: {Environment.CurrentManagedThreadId}");
-             Listen(joinState.p2pBase.GetId());
+             Listen(joinState.p2pBase.LocalId);
 
             // OnNetworkJoined needs to be synchronized
             if (joinState.mainSyncCtx != null)

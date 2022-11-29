@@ -65,7 +65,7 @@ namespace P2pNet
             connection = factory.CreateConnection(username, password);
             session = connection.CreateSession();
             connection.Start();
-            Listen(p2pBase.GetId());
+            Listen(p2pBase.LocalId);
             p2pBase.OnNetworkJoined(mainChannel, localHelloData);
         }
 

@@ -75,7 +75,7 @@ namespace P2pNet
                 logger.Debug(string.Format("P2pRedis Ctor: System.ArgumentException:{0}", ex.Message));
                 throw( new Exception($"Bad connection string: {ex.Message}"));
             }
-            Listen(p2pBase.GetId());
+            Listen(p2pBase.LocalId);
 
             p2pBase.OnNetworkJoined(mainChannel, localHelloData);
         }

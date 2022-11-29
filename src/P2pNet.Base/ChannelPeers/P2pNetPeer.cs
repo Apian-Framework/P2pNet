@@ -13,14 +13,22 @@ namespace P2pNet
 
     public class P2pNetPeer
     {
-        public string p2pId;
+        public string p2pId { get; private set; } // This is always created unique when a local peer is created, and picked up by other peers
+
+        public string p2pAddress {get; private set; }
 
         public PeerClockSyncCalc clockSync;
 
-        public P2pNetPeer(string _p2pId)
+        public P2pNetPeer( string _p2pId)
         {
             p2pId = _p2pId;
             clockSync = new PeerClockSyncCalc(p2pId);
+            // p2pAddress is null until set during HELLO
+        }
+
+        public void SetAddress(string _p2pAddress)
+        {
+             p2pAddress = _p2pAddress;
         }
 
         // Ping/Timeout

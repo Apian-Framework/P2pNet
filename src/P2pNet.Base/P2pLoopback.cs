@@ -44,7 +44,7 @@ namespace P2pNet
                 mainSyncCtx = SynchronizationContext.Current
             };
 
-            Listen(_p2pBase.GetId());
+            Listen(_p2pBase.LocalId);
             _p2pBase.OnNetworkJoined(mainChannel, localHelloData);
         }
 

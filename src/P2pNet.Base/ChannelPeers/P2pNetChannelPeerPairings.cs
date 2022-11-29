@@ -12,14 +12,16 @@ namespace P2pNet
     public class P2pNetChannelPeerPairings
     {
         public  P2pNetChannel MainChannel { get; private set;}  // reference into Channels
-        public Dictionary<string, P2pNetPeer> Peers { get; private set; }
+        public Dictionary<string, P2pNetPeer> PeersById { get; private set; }
+        public Dictionary<string, P2pNetPeer> PeersByAddress { get; private set; }
         public Dictionary<string, P2pNetChannel> Channels { get; private set; } //
         public Dictionary<string, P2pNetChannelPeer> ChannelPeers { get; private set; } // key is (<channelID>/<peerId>)
         public UniLogger Logger;
 
         public P2pNetChannelPeerPairings()
         {
-            Peers = new Dictionary<string, P2pNetPeer>();
+            PeersById = new Dictionary<string, P2pNetPeer>();
+            PeersByAddress = new Dictionary<string, P2pNetPeer>();
             Channels = new Dictionary<string, P2pNetChannel>();
             ChannelPeers = new Dictionary<string, P2pNetChannelPeer>();
             Logger = UniLogger.GetLogger("P2pNet");
@@ -37,6 +39,12 @@ namespace P2pNet
         }
         public P2pNetChannelPeer GetChannelPeer(string chanlId, string peerId) => GetChannelPeer( ChannelPeerKey(chanlId, peerId));
 
+        public P2pNetChannelPeer GetChannelPeerByAddress(string chanlId, string peerAddr)
+        {
+            P2pNetPeer peer = PeersByAddress[peerAddr];
+            return peer != null ? GetChannelPeer( ChannelPeerKey(chanlId, peer.p2pId)) : null;
+        }
+
         public P2pNetChannelPeer AddChannelPeer(string chanId, string peerId)
         {
             P2pNetChannel channel = GetChannel(chanId);
@@ -53,7 +61,7 @@ namespace P2pNet
                 return ChannelPeers[chpKey]; // exists - Or should we return null and fail?
             }
 
-            P2pNetPeer peer = GetPeer(peerId) ?? _AddPeer(new P2pNetPeer(peerId));
+            P2pNetPeer peer = GetPeerById(peerId) ?? _AddPeer(new P2pNetPeer(peerId));
             ChannelPeers[chpKey] = new P2pNetChannelPeer(peer, channel);
             Logger.Info($"AddChannelPeer() - Added: {channel.Id}/{peerId}");
             return ChannelPeers[chpKey];
@@ -64,6 +72,7 @@ namespace P2pNet
         {
             string chpKey = ChannelPeerKey(chp);
             string peerId = chp.Peer.p2pId;
+            string peerAddr = chp.Peer.p2pAddress;
             if (ChannelPeers.ContainsKey(chpKey))
             {
                 ChannelPeers.Remove(chpKey);
@@ -72,7 +81,8 @@ namespace P2pNet
             // TODO: if the channel is "mainchannel" should we remove the peer and all other channelPeers it's in?
             if (ChannelsForPeer(peerId).Count == 0)
             {
-                Peers.Remove(peerId);
+                PeersByAddress.Remove(peerAddr);
+                PeersById.Remove(peerId);
             }
 
         }
@@ -90,36 +100,56 @@ namespace P2pNet
         public List<string> CpKeysForChannel(string chanId) => ChannelPeers.Where(kvp => kvp.Value.Channel.Id == chanId).Select(kvp => kvp.Key).ToList();
 
          // Peer stuff
-        public bool IsKnownPeer(string peerId) => Peers.ContainsKey(peerId);
-        public P2pNetPeer GetPeer(string peerId)
+        public bool IsKnownPeer(string peerId) => PeersById.ContainsKey(peerId);
+
+        public P2pNetPeer GetPeerById(string peerId)
         {
-            return Peers.ContainsKey(peerId) ? Peers[peerId] : null;
+            return PeersById.ContainsKey(peerId) ? PeersById[peerId] : null;
         }
+
+        public P2pNetPeer GetPeerByAddress(string peerAddr)
+        {
+            return PeersByAddress.ContainsKey(peerAddr) ? PeersByAddress[peerAddr] : null;
+        }
+
         private P2pNetPeer _AddPeer(P2pNetPeer peer)
         {
-            Peers[peer.p2pId] = peer;
+            PeersById[peer.p2pId] = peer;
+            // we don;t know peer address yet
             return peer;
         }
+
+        public void UpdatePeerAddress(P2pNetPeer peer, string address)
+        {
+            peer.SetAddress(address); //
+            PeersByAddress[address] = peer;
+        }
+
+
         public bool RemovePeer(string peerId)
         {
             if (IsKnownPeer(peerId))
             {
+                string peerAddr = GetPeerById(peerId).p2pAddress;
                 List<P2pNetChannelPeer> cpsToRemove = ChannelPeers.Values.Where(cp => cp.Peer.p2pId == peerId).ToList();
                 foreach (P2pNetChannelPeer c in cpsToRemove)
                     RemoveChannelPeer(c);
 
-                if (Peers.ContainsKey(peerId)) // should be gone after the above
-                    Peers.Remove(peerId);
+               if (PeersByAddress.ContainsKey(peerAddr))
+                    PeersByAddress.Remove(peerAddr);
+
+                if (PeersById.ContainsKey(peerId)) // should be gone after the above
+                    PeersById.Remove(peerId);
                 return true;
             }
             return false;
         }
 
-        public List<string> GetPeerIds() => Peers.Keys.ToList();
-        public PeerClockSyncInfo GetPeerClockSyncData(string peerId)
+        public List<string> GetPeerAddrs() => PeersById.Values.Select( (p) => p.p2pAddress).ToList();
+        public PeerClockSyncInfo GetPeerClockSyncDataByAddress(string peerAddr)
         {
             try {
-                return Peers[peerId].ClockSyncInfo;
+                return PeersByAddress[peerAddr].ClockSyncInfo;
             } catch(KeyNotFoundException) {
                 return null;
             }
