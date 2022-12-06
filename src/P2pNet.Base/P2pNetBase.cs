@@ -73,7 +73,11 @@ namespace P2pNet
 
         public List<string> GetPeerAddrs() => channelPeers.GetPeerAddrs();
         public string GetPeerData(string channelId, string peerAddr) => channelPeers.GetChannelPeerByAddress(channelId, peerAddr)?.helloData;
-        public PeerClockSyncInfo GetPeerClockSyncData(string peerAddr) => channelPeers.GetPeerClockSyncDataByAddress(peerAddr);
+
+        public PeerNetworkStats GetPeerNetworkStats(string peerAddr)
+        {
+            return PeerNetworkStats.CurrentNetworkStats(channelPeers.GetPeerByAddress(peerAddr), GetNetworkChannel().Id);
+        }
 
         public void Update()
         {

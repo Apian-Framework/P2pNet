@@ -11,6 +11,31 @@ namespace P2pNet
     // Problem here is that "p2p" is a word: "peer-to-peer" and the default .NET ReSharper rules dealing with digits result
     // in dumb stuff, like a field called "_p2PFooBar" with the 2nd P capped.
 
+    public class PeerNetworkStats
+    {
+        public long Timestamp { get; private set; }
+        public string PeerAddr { get; private set; }
+        public string NetworkId { get; private set;}
+        public long MsSinceLastHeadrFrom { get; private set; }
+        public long NetLagMs { get; private set; }
+        public double NetLagSigma { get; private set; }
+
+        protected PeerNetworkStats(P2pNetPeer peer, string networkId)
+        {
+            Timestamp = P2pNetDateTime.NowMs;
+            PeerAddr = peer.p2pAddress;
+            NetworkId = networkId;
+            MsSinceLastHeadrFrom = Timestamp - peer.LastHeardFromTs;
+            NetLagMs = peer.clockSync.NetworkLagMs;
+            NetLagSigma = peer.clockSync.NetworkLagSigma;
+        }
+        public static PeerNetworkStats CurrentNetworkStats(P2pNetPeer peer, string networkId)
+        {
+            return peer != null ? new PeerNetworkStats(peer, networkId) : null;
+        }
+    }
+
+
     public class P2pNetPeer
     {
         public string p2pId { get; private set; } // This is always created unique when a local peer is created, and picked up by other peers
@@ -140,7 +165,8 @@ namespace P2pNet
             jitterForNextTimeout = new Random().Next((int)initialSyncTimeoutMs); //
         }
 
-        public  int NetworkLagMs => (int)Math.Round(currentStats.netLag.avgVal);// round trip time / 2
+        public int NetworkLagMs => (int)Math.Round(currentStats.netLag.avgVal);// round trip time / 2
+        public double NetworkLagSigma => currentStats.netLag.sigma;
         public int ClockOffsetMs => (int)Math.Round(currentStats.clockOffset.avgVal); // local systime + offset = remote peer's sysTime
 
         public void ReportInterimSyncProgress() { lastSyncActivityMs = P2pNetDateTime.NowMs;}

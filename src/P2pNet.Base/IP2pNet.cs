@@ -13,7 +13,8 @@ namespace P2pNet
         void RemoveSubchannel(string subChannelId);
         List<string> GetPeerAddrs();
         string GetPeerData(string channelId, string peerAddr); // Remote peer's HELLO data
-        PeerClockSyncInfo GetPeerClockSyncData(string peerAddr);
+        PeerNetworkStats GetPeerNetworkStats(string peerAddr);
+        //PeerClockSyncInfo GetPeerClockSyncData(string peerAddr);
         void Leave();
         void Send(string dest, string payload); // dest can be peer address or channel id (peer Id works, too, since its a channel id)
         // void AddPeer(string peerId); // These might be needed for non-pubsub point-to-pont networking, but I'm not quite sure how it should work...
