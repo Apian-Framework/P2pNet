@@ -128,7 +128,8 @@ namespace P2pNetBaseTests
             P2pNetChannelPeerPairings coll = new P2pNetChannelPeerPairings();
             Assert.That(coll, Is.Not.Null);
             Assert.That(coll.Channels, Is.Not.Null);
-            Assert.That(coll.Peers, Is.Not.Null);
+            Assert.That(coll.PeersById, Is.Not.Null);
+            Assert.That(coll.PeersByAddress, Is.Not.Null);
             Assert.That(coll.ChannelPeers, Is.Not.Null);
         }
 

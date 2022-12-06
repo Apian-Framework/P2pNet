@@ -110,10 +110,12 @@ namespace P2pNetBaseTests
             );
 
             const string helloData = "helloData";
+            const string peerAddr = "12345678";
 
 
-            HelloPayload pld =  new HelloPayload(channelInfo, helloData);
+            HelloPayload pld =  new HelloPayload(peerAddr, channelInfo, helloData);
             Assert.That(pld, Is.Not.Null);
+            Assert.That(pld.peerAddress, Is.EqualTo(peerAddr));
             Assert.That(pld.channelInfo, Is.EqualTo(channelInfo));
             Assert.That(pld.peerChannelHelloData, Is.EqualTo(helloData));
 
