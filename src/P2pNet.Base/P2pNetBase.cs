@@ -338,7 +338,7 @@ namespace P2pNet
 
             if (peer == null && channel?.Info.pingMs == 0) // unknown peer, non-tracking channel
             {
-                // Add the channelPeer pair - the channel in non-tracking so there won;t be pings and it might time out
+                // Add the channelPeer pair - the channel is non-tracking so there won;t be pings and it might time out
                 logger.Debug($"_OnAppMsg - Adding unknown peer {SID(msg.srcId) } sending for non-tracking channel {channel.Id}");
                 channelPeers.AddChannelPeer(channel.Id, msg.srcId); // add the channel/peer pair
                 peer = channelPeers.GetPeerById(msg.srcId);
@@ -346,7 +346,7 @@ namespace P2pNet
 
             if (peer != null)
             {
-                // I there's clock sync data for the channel the figure out when the msg was sent
+                // If there's clock sync data for the channel then figure out when the msg was sent
                 long realMsSinceSend = -1; // means no clock sync
                 if (channel != null && channel.IsSyncingClocks)
                 {
