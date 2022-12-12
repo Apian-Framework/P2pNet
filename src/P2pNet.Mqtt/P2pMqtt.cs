@@ -34,7 +34,7 @@ namespace P2pNet
 
         public P2pMqtt(string _connectionString)
         {
-            logger = UniLogger.GetLogger("P2pNet");
+            logger = UniLogger.GetLogger("P2pNetCarrier");
             logger.Verbose($"MQTT ctor (thread: {Environment.CurrentManagedThreadId})");
             ResetJoinVars();
 

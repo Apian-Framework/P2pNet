@@ -87,11 +87,18 @@ namespace P2pNet
 
         }
 
-        public void RemoveChannelPeer(string chanId, string peerId)
+        public bool RemoveChannelPeer(string chanId, string peerId)
         {
             string chpKey = ChannelPeerKey(chanId, peerId);
             if (ChannelPeers.ContainsKey(chpKey))
+            {
                 ChannelPeers.Remove(chpKey);
+                // If the peer is now in no channels, remove it.
+                if (ChannelsForPeer(peerId).Count == 0)
+                    RemovePeer(peerId);
+                return true;
+            }
+            return false;
         }
 
         public List<P2pNetPeer> PeersForChannel(string chanId) => ChannelPeers.Values.Where(cp => cp.Channel.Id == chanId).Select(cp => cp.Peer).ToList();

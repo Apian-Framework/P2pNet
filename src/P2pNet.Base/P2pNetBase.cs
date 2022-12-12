@@ -211,7 +211,7 @@ namespace P2pNet
 
                 string trueDest  =  destPeer == null ? dest : destPeer.p2pId;
 
-                logger.Debug($"*{SID(LocalAddress)}: Send - sending appMsg to {(channelPeers.IsMainChannel(dest) ? "main channel" : trueDest)}"); // TODO: make better
+                logger.Debug($"Send() Sending appMsg to {(channelPeers.IsMainChannel(dest) ? "main channel" : trueDest)}"); // TODO: make better
 
                 DoSend(trueDest, P2pNetMessage.MsgAppl, payload);
             }
@@ -275,6 +275,8 @@ namespace P2pNet
             if (msg.srcId == LocalId)
                 return; // main channel messages from local peer will show up here
 
+            logger.Verbose($"OnReceivedNetMessage(): channel: {msgChannel}, MsgType: {msg.msgType} SrcId: {msg.srcId}, MsgId: {msg.msgId}");
+
             // If the peer was missing on any channels, inform those channels that it's back BEFORE handling the message
             foreach( P2pNetChannelPeer chp in channelPeers.ChannelPeersForPeer(msg.srcId) )
             {
@@ -306,6 +308,9 @@ namespace P2pNet
                     break;
                 case P2pNetMessage.MsgHelloBadChannelInfo:
                     OnHelloBadInfoMsg(msgChannel, msg);
+                    break;
+                case P2pNetMessage.MsgHelloAddressExists:
+                    OnHelloAddressExistsMsg(msgChannel, msg);
                     break;
                 case P2pNetMessage.MsgHelloChannelFull:
                     OnHelloChannelFullMsg(msgChannel, msg);
@@ -359,7 +364,8 @@ namespace P2pNet
                     }
                 }
 
-                logger.Debug($"_OnAppMsg - msg from {SID(msg.srcId)}" );
+
+                logger.Debug($"_OnAppMsg - msg from ID: {SID(msg.srcId)} as address: {peer.p2pAddress}" );
                 client.OnClientMsg(peer.p2pAddress, msg.dstChannel, realMsSinceSend, msg.payload);
 
             } else {
@@ -403,10 +409,42 @@ namespace P2pNet
 
         public void SendHelloMsg(string destChannel, string subjectChannel, string helloMsgType = P2pNetMessage.MsgHello)
         {
+            logger.Verbose($"SendHelloMsg(): Sending: {helloMsgType} to channel: {destChannel}");
             // When joining a new channel, destChannel and subjectChannel are typically the same.
             // When replying, or sending to a single peer, the destChannel is usually the recipient peer
             P2pNetChannel chan = channelPeers.GetChannel(subjectChannel);
             DoSend(destChannel, helloMsgType, JsonConvert.SerializeObject(new HelloPayload(LocalAddress, chan.Info, chan.LocalHelloData)));
+        }
+
+        protected bool _PeerAddrIsBad(string channelId , string senderId, string senderAddr)
+        {
+            // Is it OUR address!?!?!!
+            if ((senderId != LocalId) && (senderAddr == LocalAddress))
+            {
+                // A msg from localId shouldn;t ever get here, but no harm in checking
+                logger.Warn($"_PeerAddrIsBad() Peer Address: {SID(senderAddr)} OUR address!! Removing remote peer." );
+                SendHelloMsg(senderId, channelId, P2pNetMessage.MsgHelloAddressExists);
+                return true;
+            }
+
+            // Is it an existing peer (it probably is) with a different *non-null* address?
+            string existingPeerAddr = channelPeers.GetPeerById(senderId)?.p2pAddress;
+            if (!string.IsNullOrEmpty(existingPeerAddr) && existingPeerAddr!= senderAddr)
+            {
+                logger.Warn($"_PeerAddrIsBad() Peer ID: {SID(senderId)} alreadys exists with different address: {SID(senderAddr)}. Removing new peer." );
+                SendHelloMsg(senderId, channelId, P2pNetMessage.MsgHelloAddressExists);
+                return true;
+            }
+
+            // Is there and existing peer with this addres and a different ID?
+            string existingPeerId = channelPeers.GetPeerByAddress(senderAddr)?.p2pId;
+            if (!string.IsNullOrEmpty(existingPeerId) && existingPeerId!= senderId)
+            {
+                logger.Warn($"_PeerAddrIsBad() Peer Address: {SID(senderAddr)} is already in use for a different peer: {SID(senderId)} Removing new peer." );
+                SendHelloMsg(senderId, channelId, P2pNetMessage.MsgHelloAddressExists);
+                return true;
+            }
+            return false;
         }
 
         protected void OnHelloMsg(string unusedSrcChannel, P2pNetMessage msg)
@@ -415,6 +453,8 @@ namespace P2pNet
             string senderId = msg.srcId;
             string senderAddr = hp.peerAddress;
             P2pNetChannel channel = channelPeers.GetChannel(hp.channelInfo.id);
+
+            logger.Verbose($"OnHelloMsg(): for channel: {channel.Id} From id: {senderId}  Address: {senderAddr}" );
 
             if ( !channel.Info.IsEquivalentTo(hp.channelInfo) )
             {
@@ -428,6 +468,12 @@ namespace P2pNet
             {
                 logger.Warn($"OnHelloMsg() Channel {channel.Id} is FULL. Refuse HELLO" );
                 SendHelloMsg(senderId, channel.Id, P2pNetMessage.MsgHelloChannelFull);
+                return;
+            }
+
+            if (_PeerAddrIsBad(channel.Id, senderId, senderAddr))
+            {
+                channelPeers.RemovePeer(senderId);
                 return;
             }
 
@@ -456,6 +502,14 @@ namespace P2pNet
             string senderId = msg.srcId;
             string senderAddr = hp.peerAddress;
 
+           logger.Verbose($"OnHelloReplyMsg(): for channel: {hp.channelInfo.id} From id: {senderId} as address: {senderAddr}" );
+
+            if (_PeerAddrIsBad(hp.channelInfo.id, senderId, senderAddr))
+            {
+                channelPeers.RemovePeer(senderId);
+                return;
+            }
+
             P2pNetChannelPeer chp = channelPeers.GetChannelPeer(hp.channelInfo.id, senderId);
             if (chp == null)
                 chp = channelPeers.AddChannelPeer(hp.channelInfo.id, senderId);
@@ -474,15 +528,30 @@ namespace P2pNet
         protected void OnHelloBadInfoMsg(string srcId, P2pNetMessage msg)
         {
             HelloPayload hp = JsonConvert.DeserializeObject<HelloPayload>(msg.payload);
-            logger.Warn($"OnHelloBadInfoMsg() - Bad channel info reported for {hp.channelInfo.id} from peer {SID(msg.srcId)}" );
+            logger.Warn($"OnHelloBadInfoMsg() - Bad channel info reported for {hp.channelInfo.id} from peer id: {SID(msg.srcId)} Address: {hp.peerAddress}" );
+            if (channelPeers.RemoveChannelPeer(hp.channelInfo.id, srcId))  // THey won;t be talking to us anyway
+                client.OnPeerLeft(hp.channelInfo.id, hp.peerAddress);
+
+            // But... THEY might be the ones with the Bad channel info, so don;t leave the channel (yet)
+        }
+
+        protected void OnHelloAddressExistsMsg(string srcId, P2pNetMessage msg)
+        {
+            HelloPayload hp = JsonConvert.DeserializeObject<HelloPayload>(msg.payload);
+            logger.Warn($"OnHelloBadAddressMsg() - Bad address (already exists w/different ID) reported for {hp.channelInfo.id} from peer id: {SID(msg.srcId)} Addr: {hp.peerAddress}" );
+            // We MIGHT know this peer if we got their hello first. We should delete them since they clearly won;t be talking to us and will time out.
+              if (channelPeers.RemoveChannelPeer(hp.channelInfo.id, srcId))
+                client.OnPeerLeft(hp.channelInfo.id, hp.peerAddress);
+            // On the other hand, they might be wrong about us being the duplicate, so dont leave (yet)
         }
 
         protected void OnHelloChannelFullMsg(string srcId, P2pNetMessage msg)
         {
             HelloPayload hp = JsonConvert.DeserializeObject<HelloPayload>(msg.payload);
-            logger.Warn($"OnHelloChannelFullMsg() - Channel full reported for {hp.channelInfo.id} from peer {SID(msg.srcId)}" );
-
-            // FIXME: need to leave the channel and return the error (need a new exeption?)
+            logger.Warn($"OnHelloChannelFullMsg() - Channel full reported for {hp.channelInfo.id} from peer {SID(msg.srcId)}  Address: {hp.peerAddress}" );
+            if (channelPeers.RemoveChannelPeer(hp.channelInfo.id, srcId))  // THey won;t be talking to us anyway
+                client.OnPeerLeft(hp.channelInfo.id, hp.peerAddress);
+            // FIXME: *probably* need to leave the channel and return the error (need a new exeption?) ALL OF THE ABOVE, TOO!
         }
 
         protected void SendPing(string chanId)
@@ -501,11 +570,13 @@ namespace P2pNet
 
         protected void SendBye(string chanId)
         {
+             logger.Verbose($"SendBye() channel: {chanId}");
             DoSend(chanId, P2pNetMessage.MsgGoodbye, null);
         }
 
         protected void OnByeMsg(string srcChannel, P2pNetMessage msg)
         {
+            logger.Verbose($"OnByeMsg() channel: {srcChannel} PeerId: {SID(msg.srcId)}");
             channelPeers.RemoveChannelPeer(srcChannel, msg.srcId);
             P2pNetPeer peer = channelPeers.GetPeerById(msg.srcId);
 

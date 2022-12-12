@@ -6,8 +6,8 @@ namespace P2pNet
     {
         public string name;
         public string id;
-        public int dropMs;
-        public int pingMs; // 0 means "don't track". No hello, no pings, no drop, no timing.
+        public int dropMs; // 0 means "no dropping" You probably don't want to do this.
+        public int pingMs; // 0 means "don't track". No hello, no pings, no missing, no timing. (will still drop, tho)
         public int missingMs; // 0 means "don't report peers as mising". Idea is that an app might not want a peer dropped from
             // the entire network if it has just kinda hung for a few seconds - but the app might want to be notified.
         public int netSyncMs; // zero means "don't compute net timing stats" - meaningless if pingMs is 0.

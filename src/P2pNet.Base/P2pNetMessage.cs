@@ -8,6 +8,7 @@ namespace P2pNet
         public const string MsgHelloReply = "HRPLY"; // do not reply to this
         public const string MsgHelloBadChannelInfo = "BADINF"; // On MsgHello with bad channel info send this as a reply (don't add peer)
         public const string MsgHelloChannelFull = "CHFULL"; // On MsgHello in a full channel send this as a reply (don't add peer)
+        public const string MsgHelloAddressExists = "DUPADR"; // On MsgHello with an address that already exists (w/different ID) send this as a reply (don't add peer)
         public const string MsgGoodbye = "BYE";
         public const string MsgPing = "PING";
         public const string MsgAppl = "APPMSG";
