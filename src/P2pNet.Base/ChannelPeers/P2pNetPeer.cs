@@ -66,9 +66,6 @@ namespace P2pNet
         // Clock sync
         public PeerClockSyncInfo ClockSyncInfo => clockSync.GetClockSyncInfo(p2pId); // why not just make this on Compute?
 
-        //public  long NetworkLagMs => clockSync.NetworkLagMs;
-        //public long ClockOffsetMs => clockSync.ClockOffsetMs;
-
         public bool ClockNeedsSync(int syncTimeoutMs) => clockSync.ClockNeedsSync(syncTimeoutMs);
         public void ReportInterimSyncProgress() => clockSync.ReportInterimSyncProgress(); // Call when performing sync steps
         public void CompleteClockSync(long t0, long t1, long t2, long t3) // Call when sync is finished.
@@ -189,7 +186,6 @@ namespace P2pNet
             return new PeerClockSyncInfo(p2pId,  currentStats.sampleCount,  (int)(P2pNetDateTime.NowMs - currentStats.timeStampMs),
                 (int)Math.Round(currentStats.clockOffset.avgVal), currentStats.clockOffset.sigma,  (int)Math.Round(currentStats.netLag.avgVal), currentStats.netLag.sigma);
         }
-     //public PeerClockSyncInfo(string pid, long cnt, long since, long offset, double offsetSigma, long lag, double lagSigma)
 
         public void CompleteSync(long t0, long t1, long t2, long t3)
         {
