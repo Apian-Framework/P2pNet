@@ -16,7 +16,7 @@ namespace P2pNet
         public long Timestamp { get; private set; }
         public string PeerAddr { get; private set; }
         public string NetworkId { get; private set;}
-        public long MsSinceLastHeadrFrom { get; private set; }
+        public long MsSinceLastHeardFrom { get; private set; }
         public long NetLagMs { get; private set; }
         public double NetLagSigma { get; private set; }
 
@@ -25,7 +25,7 @@ namespace P2pNet
             Timestamp = P2pNetDateTime.NowMs;
             PeerAddr = peer.p2pAddress;
             NetworkId = networkId;
-            MsSinceLastHeadrFrom = Timestamp - peer.LastHeardFromTs;
+            MsSinceLastHeardFrom = Timestamp - peer.LastHeardFromTs;
             NetLagMs = peer.clockSync.NetworkLagMs;
             NetLagSigma = peer.clockSync.NetworkLagSigma;
         }
