@@ -20,7 +20,7 @@ namespace P2pNet
         private List<P2pNetMessage> messageQueue;
         private object queueLock = new object();
 
-        public UniLogger logger = UniLogger.GetLogger("P2pNet");
+        public UniLogger logger = UniLogger.GetLogger("P2pNetCarrier");
 
         public P2pActiveMq( string _connectionString)
         {
