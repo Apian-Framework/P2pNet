@@ -1,7 +1,10 @@
 <Project>
 
   <!-- import parent Directory.Build.props if there is one -->
-  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+  <PropertyGroup>
+    <ParentBuildProps>$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))</ParentBuildProps>
+  </PropertyGroup>
+  <Import Condition="$(ParentBuildProps)!=''" Project="$(ParentBuildProps)" />
 
   <PropertyGroup>
     <!-- Set up locations for /obj and /bin  -->
