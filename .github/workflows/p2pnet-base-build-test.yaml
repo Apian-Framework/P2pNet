@@ -35,19 +35,21 @@ jobs:
         dotnet-version: 5.0.302
 
     - name: Checkout Target
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
-        path: main
+        ref: main
+        path: P2pNet
 
     - name: Checkout Apian dependencies (UniLog)
       uses: actions/checkout@v2
       with:
         repository: Apian-Framework/UniLog
+        ref: main
         path: UniLog
 
     - name: Restore dependencies
       run: dotnet restore
-      working-directory: main
+      working-directory: P2pNet
 
     # - name: Default badges
     #   run: |
@@ -61,10 +63,10 @@ jobs:
 
     - name: Test # See the test project .csproj file for property definitions
       run: dotnet test ./tests/${{env.SUBPROJECT}}.Tests --no-restore --verbosity normal
-      working-directory: main
+      working-directory: P2pNet
 
     - name: Checkout CI badges
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: Apian-Framework/Apian-CI-Badges
         ref: ${{env.SUBPROJECT}}
@@ -89,7 +91,7 @@ jobs:
         git add ${{env.SUBPROJECT}}_branchcoverage.svg
         git pull --ff-only
         git commit --allow-empty -m "${{env.SUBPROJECT}} coverage badges"
-      working-directory: main
+      working-directory: P2pNet
 
     - name: Push Badges
       uses: ad-m/github-push-action@master
