@@ -134,8 +134,8 @@ namespace P2pNetBaseTests
             long computedLag = ((t3 - t0) - (t2 - t1)) / 2;
             long computedTheta = ((t1 - t0) + (t2 - t3)) / 2;
 
-            long reportedLag, reportedOffset;
-            float lagVar, offsetVar;
+            // long reportedLag, reportedOffset;
+            // float lagVar, offsetVar;
 
             // This is not at all how it works anymore. SHouldn't be doing these
 

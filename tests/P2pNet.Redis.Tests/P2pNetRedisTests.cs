@@ -12,7 +12,7 @@ namespace P2pNetTests
     [TestFixture]
     public class P2pNetRedisTests
     {
-        Mock<IP2pNetClient> mockCli;
+//        Mock<IP2pNetClient> mockCli;
         Mock<IConnectionMultiplexer> mockMux;
 
         class ConnectionStringFailure  {
