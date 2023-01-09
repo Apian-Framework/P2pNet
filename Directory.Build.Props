@@ -1,7 +1,16 @@
 <Project>
+
+  <!-- import parent Directory.Build.Props if there is one -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.Props', '$(MSBuildThisFileDirectory)../'))" />
+
   <PropertyGroup>
+    <!-- Set up locations for /obj and /bin  -->
     <SolutionDir Condition="'$(SolutionDir)'==''">$(MSBuildProjectDirectory)\..\..\</SolutionDir>
     <BaseIntermediateOutputPath>$(SolutionDir)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
     <BaseOutputPath>$(SolutionDir)bin\$(MSBuildProjectName)\</BaseOutputPath>
+
+    <!-- Default locations of Apian code modules if not already set by parent Directory.Build.Props -->
+    <UniLogSource Condition="'$(UniLogSource)'==''" >$(SolutionDir)\..\UniLog</UniLogSource>
+
   </PropertyGroup>
 </Project>
