@@ -23,24 +23,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
-    - name: Setup .NET Core for netcoreapp3.1 target
-      uses: actions/setup-dotnet@v1
+    - uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: 3.1.301
+        dotnet-version: '6.0.x'
 
-    - name: Setup .NET Core for build tools
-      uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: 5.0.302
+    # - name: Setup .NET Core for netcoreapp3.1 target
+    #   uses: actions/setup-dotnet@v1
+    #   with:
+    #     dotnet-version: 3.1.301
+
+    # - name: Setup .NET Core for build tools
+    #   uses: actions/setup-dotnet@v1
+    #   with:
+    #     dotnet-version: 5.0.302
 
     - name: Checkout Target
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         path: main
 
     - name: Checkout Apian dependencies (UniLog)
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: Apian-Framework/UniLog
         path: UniLog
@@ -64,7 +67,7 @@ jobs:
       working-directory: main
 
     - name: Checkout CI badges
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: Apian-Framework/Apian-CI-Badges
         ref: ${{env.SUBPROJECT}}
@@ -108,7 +111,7 @@ jobs:
 
     # This works, but there's nothing useful to do with the badge, 'cause it's zipped
     # - name: Upload Coverage Badge
-    #   uses: actions/upload-artifact@v2
+    #   uses: actions/upload-artifact@v3
     #   with:
     #     name: ${{env.SUBPROJECT}}_badge.svg
     #     path: ./main/tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg
