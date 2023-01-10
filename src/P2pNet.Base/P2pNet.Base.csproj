@@ -8,30 +8,6 @@
     <RepositoryUrl>https://github.com/Apian-Framework/P2pNet</RepositoryUrl>
   </PropertyGroup>
 
-  <Target Name="ShowEnv" BeforeTargets="BeforeBuild">
-      <Message Text=" " Importance="high" />
-      <Message Text="-------------------------------------------------------------------------------------" Importance="high" />
-      <Message Text="Build Environment:" Importance="high" />
-      <Message Text="MSBuildProjectDirectory = $(MSBuildProjectDirectory)" Importance="high" />
-      <Message Text="MSBuildThisFileDirectory = $(MSBuildThisFileDirectory)" Importance="high" />
-      <Message Text=" " Importance="high" />
-      <Message Text="SolutionDir = $(SolutionDir)" Importance="high" />
-      <Message Text="ProjectDir = $(ProjectDir)" Importance="high" />
-      <Message Text=" " Importance="high" />
-      <Message Text="BaseOutputPath = $(BaseOutputPath)" Importance="high" />
-      <Message Text="BaseIntermediateOutputPath = $(BaseIntermediateOutputPath)" Importance="high" />
-      <Message Text="IntermediateOutputPath = $(IntermediateOutputPath)" Importance="high" />
-      <Message Text="OutputPath = $(OutputPath)" Importance="high" />
-      <Message Text=" " Importance="high" />
-      <Message Text="OutDir = $(OutDir)" Importance="high" />
-      <Message Text="IntDir = $(IntDir)" Importance="high" />
-      <Message Text="TargetDir = $(TargetDir)" Importance="high" />
-      <Message Text=" " Importance="high" />
-      <Message Text="UniLogSource = $(UniLogSource)" Importance="high" />
-      <Message Text="-------------------------------------------------------------------------------------" Importance="high" />
-      <Message Text=" " Importance="high" />
-  </Target>
-
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />

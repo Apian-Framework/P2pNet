@@ -45,7 +45,7 @@ jobs:
         path: build
 
     - name: Checkout Apian dependencies (UniLog)
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: Apian-Framework/UniLog
         ref: main
@@ -89,7 +89,7 @@ jobs:
         git add ${{env.SUBPROJECT}}_branchcoverage.svg
         git pull --ff-only
         git commit --allow-empty -m "${{env.SUBPROJECT}} coverage badges"
-      working-directory: P2pNet
+      working-directory: build
 
     - name: Push Badges
       uses: ad-m/github-push-action@master
