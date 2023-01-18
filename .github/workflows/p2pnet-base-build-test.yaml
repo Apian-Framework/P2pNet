@@ -28,40 +28,30 @@ jobs:
       with:
         dotnet-version: '6.0.x'
 
-#    - name: Setup .NET Core for netcoreapp3.1 target
-#      uses: actions/setup-dotnet@v1
-#      with:
-#        dotnet-version: 3.1.301
 
-#    - name: Setup .NET Core for build tools
-#      uses: actions/setup-dotnet@v1
-#      with:
-#        dotnet-version: 5.0.302
 
     - name: Checkout Target
       uses: actions/checkout@v3
       with:
-        ref: main
-        path: build
+        path: main
 
     - name: Checkout Apian dependencies (UniLog)
       uses: actions/checkout@v3
       with:
         repository: Apian-Framework/UniLog
-        ref: main
         path: UniLog
 
     - name: Restore dependencies
       run: dotnet restore
-      working-directory: build
+      working-directory: main
 
     - name: Build
-      run: dotnet build ./src/${{env.SUBPROJECT}} --configuration Release --no-restore
+      run: dotnet build ./src/${{env.SUBPROJECT}} --configuration Release
       working-directory: build
 
     - name: Test # See the test project .csproj file for property definitions
-      run: dotnet test ./tests/${{env.SUBPROJECT}}.Tests --no-restore --verbosity normal
-      working-directory: build
+      run: dotnet test ./tests/${{env.SUBPROJECT}}.Tests --verbosity normal
+      working-directory: main
 
     - name: Checkout CI badges
       uses: actions/checkout@v3
