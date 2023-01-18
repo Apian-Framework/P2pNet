@@ -1,0 +1,118 @@
+
+name: P2pNet.Mqtt Build/Test
+
+env:
+  SUBPROJECT: P2pNet.Mqtt
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+    - 'src/P2pNet.Mqtt/**'
+    - 'tests/P2pNet.Mqtt.Tests/**'
+
+# Would really like to do this:
+#    paths:
+#    - 'src/${{env.SUBPROJECT}}/**'
+#    - 'tests/${{env.SUBPROJECT}}.Tests/**'
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '6.0.x'
+
+    # - name: Setup .NET Core for netcoreapp3.1 target
+    #   uses: actions/setup-dotnet@v1
+    #   with:
+    #     dotnet-version: 3.1.301
+
+    # - name: Setup .NET Core for build tools
+    #   uses: actions/setup-dotnet@v1
+    #   with:
+    #     dotnet-version: 5.0.302
+
+    - name: Checkout Target
+      uses: actions/checkout@v3
+      with:
+        path: main
+
+    - name: Checkout Apian dependencies (UniLog)
+      uses: actions/checkout@v3
+      with:
+        repository: Apian-Framework/UniLog
+        path: UniLog
+
+    - name: Restore dependencies
+      run: dotnet restore
+      working-directory: main
+
+    # - name: Default badges
+    #   run: |
+    #     cp -v ./.github/badges/badge_linecoverage_none.svg ./.github/badges${{env.SUBPROJECT}}_linecoverage.svg
+    #     cp -v ./.github/badges/badge_branchcoverage_none.svg ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
+    #   working-directory: main
+
+    - name: Build
+      run: dotnet build ./src/${{env.SUBPROJECT}} --configuration Release --no-restore
+      working-directory: main
+
+    - name: Test # See the test project .csproj file for property definitions
+      run: dotnet test ./tests/${{env.SUBPROJECT}}.Tests --no-restore --verbosity normal
+      working-directory: main
+
+    - name: Checkout CI badges
+      uses: actions/checkout@v3
+      with:
+        repository: Apian-Framework/Apian-CI-Badges
+        ref: ${{env.SUBPROJECT}}
+        path: badges
+
+    - name: Commit Badges
+      run: |
+        if [ -f ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg ]
+        then
+          cp -v ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg ../badges/${{env.SUBPROJECT}}_linecoverage.svg
+          cp -v ./tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_branchcoverage.svg ../badges/${{env.SUBPROJECT}}_branchcoverage.svg
+        else
+          echo "No coverage badges created"
+          cp -v ../badges/badge_linecoverage_none.svg ../badges/${{env.SUBPROJECT}}_linecoverage.svg
+          cp -v ../badges/badge_branchcoverage_none.svg ../badges/${{env.SUBPROJECT}}_branchcoverage.svg
+        fi
+        cd ../badges
+        git config --global user.name "ApianFrameworkPackageAccess"
+        git config --global user.email "apian-framework-machine@bigfattail.com"
+        git config -l | grep 'http\..*\.extraheader' | cut -d= -f1 | xargs -L1 git config --unset-all
+        git add ${{env.SUBPROJECT}}_linecoverage.svg
+        git add ${{env.SUBPROJECT}}_branchcoverage.svg
+        git pull --ff-only
+        git commit --allow-empty -m "${{env.SUBPROJECT}} coverage badges"
+      working-directory: main
+
+    - name: Push Badges
+      uses: ad-m/github-push-action@master
+      with:
+        directory: badges
+        repository: Apian-Framework/Apian-CI-Badges
+        branch: ${{env.SUBPROJECT}}
+        github_token: ${{ secrets.BOT_ACCESS_TOKEN }}
+
+
+    # - name: Where am I?
+    #   run: |
+    #     echo Pwd: "$(pwd)"
+    #     echo ls: "$(ls)"
+    #     echo Way down: "$(ls ./main/tests/P2pNet.Base.Tests/coverage/reports/)"
+
+    # This works, but there's nothing useful to do with the badge, 'cause it's zipped
+    # - name: Upload Coverage Badge
+    #   uses: actions/upload-artifact@v3
+    #   with:
+    #     name: ${{env.SUBPROJECT}}_badge.svg
+    #     path: ./main/tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg
+
