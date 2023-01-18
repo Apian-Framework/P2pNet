@@ -47,7 +47,7 @@ jobs:
 
     - name: Build
       run: dotnet build ./src/${{env.SUBPROJECT}} --configuration Release
-      working-directory: build
+      working-directory: main
 
     - name: Test # See the test project .csproj file for property definitions
       run: dotnet test ./tests/${{env.SUBPROJECT}}.Tests --verbosity normal
