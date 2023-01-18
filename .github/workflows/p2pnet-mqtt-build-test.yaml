@@ -23,19 +23,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
     - uses: actions/setup-dotnet@v3
       with:
         dotnet-version: '6.0.x'
-
-    # - name: Setup .NET Core for netcoreapp3.1 target
-    #   uses: actions/setup-dotnet@v1
-    #   with:
-    #     dotnet-version: 3.1.301
-
-    # - name: Setup .NET Core for build tools
-    #   uses: actions/setup-dotnet@v1
-    #   with:
-    #     dotnet-version: 5.0.302
 
     - name: Checkout Target
       uses: actions/checkout@v3
@@ -52,18 +43,12 @@ jobs:
       run: dotnet restore
       working-directory: main
 
-    # - name: Default badges
-    #   run: |
-    #     cp -v ./.github/badges/badge_linecoverage_none.svg ./.github/badges${{env.SUBPROJECT}}_linecoverage.svg
-    #     cp -v ./.github/badges/badge_branchcoverage_none.svg ./.github/badges/${{env.SUBPROJECT}}_branchcoverage.svg
-    #   working-directory: main
-
     - name: Build
-      run: dotnet build ./src/${{env.SUBPROJECT}} --configuration Release --no-restore
+      run: dotnet build ./src/${{env.SUBPROJECT}} --configuration Release
       working-directory: main
 
     - name: Test # See the test project .csproj file for property definitions
-      run: dotnet test ./tests/${{env.SUBPROJECT}}.Tests --no-restore --verbosity normal
+      run: dotnet test ./tests/${{env.SUBPROJECT}}.Tests --verbosity normal
       working-directory: main
 
     - name: Checkout CI badges
@@ -101,18 +86,4 @@ jobs:
         repository: Apian-Framework/Apian-CI-Badges
         branch: ${{env.SUBPROJECT}}
         github_token: ${{ secrets.BOT_ACCESS_TOKEN }}
-
-
-    # - name: Where am I?
-    #   run: |
-    #     echo Pwd: "$(pwd)"
-    #     echo ls: "$(ls)"
-    #     echo Way down: "$(ls ./main/tests/P2pNet.Base.Tests/coverage/reports/)"
-
-    # This works, but there's nothing useful to do with the badge, 'cause it's zipped
-    # - name: Upload Coverage Badge
-    #   uses: actions/upload-artifact@v3
-    #   with:
-    #     name: ${{env.SUBPROJECT}}_badge.svg
-    #     path: ./main/tests/${{env.SUBPROJECT}}.Tests/coverage/reports/badge_linecoverage.svg
 
