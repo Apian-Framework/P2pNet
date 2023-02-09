@@ -252,7 +252,7 @@ namespace P2pNet
 
         protected string NewP2pId()
         {
-            return System.Guid.NewGuid().ToString();
+            return Guid.NewGuid().ToString("N");
         }
 
         protected void DoSend(string dstChan, string msgType, string payload)
