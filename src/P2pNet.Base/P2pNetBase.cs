@@ -11,6 +11,7 @@ namespace P2pNet
     // Problem here is that "p2p" is a word: "peer-to-peer" and the default .NET ReSharper rules dealing with digits result
     // in dumb stuff, like a field called "_p2PFooBar" with the 2nd P capped.
 
+
     public class P2pNetBase : IP2pNet, IP2pNetBase
     {
         public string LocalId  {get; private set; }
@@ -20,7 +21,6 @@ namespace P2pNet
         protected P2pNetChannelPeerPairings channelPeers;
         protected Dictionary<string, long> lastMsgIdSent; // last Id sent to each channel. Msg IDs are serial, and PER CHANNEL
         public UniLogger logger;
-
 
         // P2pNet Id is NOT necessarily the underlying network address (or id) of the peer.
         // It _is_, however, the pubsub channel for direct messages.
@@ -502,10 +502,12 @@ namespace P2pNet
             string senderId = msg.srcId;
             string senderAddr = hp.peerAddress;
 
-           logger.Verbose($"OnHelloReplyMsg(): for channel: {hp.channelInfo.id} From id: {senderId} as address: {senderAddr}" );
+            logger.Verbose($"OnHelloReplyMsg(): for channel: {hp.channelInfo.id} From id: {senderId} as address: {senderAddr}" );
 
+            // This shouldn't be able to happen because sender of the reply would have sent an AddressIsBad reply.
             if (_PeerAddrIsBad(hp.channelInfo.id, senderId, senderAddr))
             {
+                logger.Warn($"OnHelloReplyMsg(): Should not be able to get a HelloReply with a bad address." );
                 channelPeers.RemovePeer(senderId);
                 return;
             }
@@ -522,6 +524,9 @@ namespace P2pNet
                 chp.Peer.UpdateLastHeardFrom();
                 logger.Verbose($"OnHelloReplyMsg - calling client.");
                 client.OnPeerJoined(chp.ChannelId, chp.P2pAddr, hp.peerChannelHelloData);
+            } else {
+                // Peer already in place. Probably not a bad thing, but weird?
+                logger.Warn($"Redundant OnHelloReplyMsg(): for channel: {hp.channelInfo.id} From id: {senderId} as address: {senderAddr}" );
             }
         }
 
@@ -529,10 +534,13 @@ namespace P2pNet
         {
             HelloPayload hp = JsonConvert.DeserializeObject<HelloPayload>(msg.payload);
             logger.Warn($"OnHelloBadInfoMsg() - Bad channel info reported for {hp.channelInfo.id} from peer id: {SID(msg.srcId)} Address: {hp.peerAddress}" );
-            if (channelPeers.RemoveChannelPeer(hp.channelInfo.id, srcId))  // THey won;t be talking to us anyway
-                client.OnPeerLeft(hp.channelInfo.id, hp.peerAddress);
 
-            // But... THEY might be the ones with the Bad channel info, so don;t leave the channel (yet)
+            //if (channelPeers.RemoveChannelPeer(hp.channelInfo.id, srcId))  // THey won;t be talking to us anyway
+            //    client.OnPeerLeft(hp.channelInfo.id, hp.peerAddress);
+
+            // Assume that we are wrong since we sent a Hello broadcast and this is a reply from someone elready there
+            RemoveSubchannel(hp.channelInfo.id);
+            client.OnJoinRejected(hp.channelInfo.id, "Bad Channel Info");
         }
 
         protected void OnHelloAddressExistsMsg(string srcId, P2pNetMessage msg)
@@ -540,18 +548,22 @@ namespace P2pNet
             HelloPayload hp = JsonConvert.DeserializeObject<HelloPayload>(msg.payload);
             logger.Warn($"OnHelloBadAddressMsg() - Bad address (already exists w/different ID) reported for {hp.channelInfo.id} from peer id: {SID(msg.srcId)} Addr: {hp.peerAddress}" );
             // We MIGHT know this peer if we got their hello first. We should delete them since they clearly won;t be talking to us and will time out.
-              if (channelPeers.RemoveChannelPeer(hp.channelInfo.id, srcId))
-                client.OnPeerLeft(hp.channelInfo.id, hp.peerAddress);
-            // On the other hand, they might be wrong about us being the duplicate, so dont leave (yet)
+            //  if (channelPeers.RemoveChannelPeer(hp.channelInfo.id, srcId))
+            //    client.OnPeerLeft(hp.channelInfo.id, hp.peerAddress);
+
+            // Assume that we are wrong since we sent a Hello broadcast and this is a reply from someone elready there
+            RemoveSubchannel(hp.channelInfo.id);
+            client.OnJoinRejected(hp.channelInfo.id, "Address Already Joined");
         }
 
         protected void OnHelloChannelFullMsg(string srcId, P2pNetMessage msg)
         {
             HelloPayload hp = JsonConvert.DeserializeObject<HelloPayload>(msg.payload);
             logger.Warn($"OnHelloChannelFullMsg() - Channel full reported for {hp.channelInfo.id} from peer {SID(msg.srcId)}  Address: {hp.peerAddress}" );
-            if (channelPeers.RemoveChannelPeer(hp.channelInfo.id, srcId))  // THey won;t be talking to us anyway
-                client.OnPeerLeft(hp.channelInfo.id, hp.peerAddress);
-            // FIXME: *probably* need to leave the channel and return the error (need a new exeption?) ALL OF THE ABOVE, TOO!
+
+            // Assume that we are wrong since we sent a Hello broadcast and this is a reply from someone elready there
+            RemoveSubchannel(hp.channelInfo.id);
+            client.OnJoinRejected(hp.channelInfo.id, "Channel Full");
         }
 
         protected void SendPing(string chanId)

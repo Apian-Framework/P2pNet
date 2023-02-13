@@ -152,7 +152,8 @@ namespace P2pNet
             return false;
         }
 
-        public List<string> GetPeerAddrs() => PeersById.Values.Select( (p) => p.p2pAddress).ToList();
+        public List<string> GetPeerAddrs() => PeersById.Values.Where( (p) => p.p2pAddress != null).Select( (p) => p.p2pAddress).ToList();
+
         public PeerClockSyncInfo GetPeerClockSyncDataByAddress(string peerAddr)
         {
             try {
@@ -186,7 +187,7 @@ namespace P2pNet
         public bool RemoveChannel(string chanId)
         {
             if (chanId == MainChannel?.Id)
-                Logger.Error("RemoveChannel() - Can;t remove main channel");
+                Logger.Warn("RemoveChannel() - Can't remove main channel");
             else if (Channels.ContainsKey(chanId))
             {
                 foreach( string id in CpKeysForChannel(chanId))
