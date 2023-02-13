@@ -15,40 +15,13 @@ namespace P2pNetTests
     {
         public class MockP2pNetClient : IP2pNetClient
         {
-            public void OnClientMsg(string from, string to, long msSinceSent, string payload)
-            {
-                throw new NotImplementedException();
-            }
-
-            public void OnPeerJoined(string chanId, string p2pId, string helloData)
-            {
-                throw new NotImplementedException();
-            }
-
-            public void OnPeerMissing(string channelId, string p2pId)
-            {
-                throw new NotImplementedException();
-            }
-
-            public void OnPeerReturned(string channelId, string p2pId)
-            {
-                throw new NotImplementedException();
-            }
-
-            public void OnPeerLeft(string chanId, string p2pId)
-            {
-                throw new NotImplementedException();
-            }
-
-            public void OnPeerSync(string channelId, string p2pId, PeerClockSyncInfo syncInfo)
-            {
-                throw new NotImplementedException();
-            }
-
-            public string P2pHelloData()
-            {
-                throw new NotImplementedException();
-            }
+            public void OnClientMsg(string from, string to, long msSinceSent, string payload) => throw new NotImplementedException();
+            public void OnPeerJoined(string channelId, string p2pId, string helloData) => throw new NotImplementedException();
+            public void OnPeerMissing(string channelId, string p2pId) => throw new NotImplementedException();
+            public void OnPeerReturned(string channelId, string p2pId) => throw new NotImplementedException();
+            public void OnPeerLeft(string channelId, string p2pId) => throw new NotImplementedException();
+            public void OnPeerSync(string channelId, string p2pId, PeerClockSyncInfo syncInfo) =>  throw new NotImplementedException();
+            public void OnJoinRejected(string channelId, string reason) =>  throw new NotImplementedException();
         }
 
         [Test]
