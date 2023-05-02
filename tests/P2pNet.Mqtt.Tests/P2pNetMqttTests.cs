@@ -49,6 +49,8 @@ namespace P2pNetTests
             {
                 throw new NotImplementedException();
             }
+
+            public void OnJoinRejected(string channelId, string reason) =>  throw new NotImplementedException();
         }
 
         [Test]
