@@ -12,3 +12,7 @@ srcassets/
 .vscode/
 .vs/
 inspectcode.xml
+# If a stray obj/ folder gets created (testing, or whatever), Unity will create an obj.meta, which will get added to git
+# Then later, when Unity sees an obj.meta file but no obj/ folder, it will create one
+# ...and so on, and so on...
+[Oo]bj.meta
